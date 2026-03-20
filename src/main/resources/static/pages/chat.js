@@ -9,6 +9,8 @@ let isStreaming = false;
 let selectedFileIds = [];
 let selectedMcpIds = new Set();
 
+const STORAGE_KEY = 'mei_chat_messages';
+
 export function renderChat() {
   return `
     <div class="chat-layout">
@@ -54,19 +56,49 @@ export function renderChat() {
 }
 
 export function initChat() {
-  messages = [];
   isStreaming = false;
   selectedFileIds = [];
   selectedMcpIds = new Set();
+  
+  // Persistence: Load messages from storage
+  messages = loadMessages();
 
   window.__sendMessage = sendMessage;
   window.__clearChat = doClearChat;
   window.__toggleFile = toggleFile;
   window.__toggleMcp = toggleMcp;
 
+  // Configure marked for Markdown
+  if (typeof marked !== 'undefined') {
+    marked.setOptions({
+      breaks: true,
+      gfm: true,
+      headerIds: false,
+      mangle: false
+    });
+  }
+
   loadFileList();
   loadMcpServers();
   renderMessages();
+}
+
+/**
+ * Persistence: Load from SessionStorage
+ */
+function loadMessages() {
+  const stored = sessionStorage.getItem(STORAGE_KEY);
+  if (stored) {
+    try { return JSON.parse(stored); } catch(e) { return []; }
+  }
+  return [];
+}
+
+/**
+ * Persistence: Save to SessionStorage
+ */
+function saveMessages() {
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
 }
 
 async function loadFileList() {
@@ -164,27 +196,34 @@ function renderMessages() {
 
   if (messages.length === 0) {
     if (empty) empty.style.display = '';
+    container.innerHTML = '';
     return;
   }
   if (empty) empty.style.display = 'none';
 
-  // Only re-render when needed
+  // Optimization: If counts match, only update the last bubble content
   const existingCount = container.querySelectorAll('.message').length;
-  if (existingCount === messages.length) {
-    // Update last assistant message content
+  if (existingCount === messages.length && existingCount > 0) {
     const last = messages[messages.length - 1];
     if (last.role === 'assistant') {
       const lastEl = container.querySelector('.message:last-child .message-bubble');
-      if (lastEl) lastEl.innerHTML = parseMarkdown(last.content);
+      if (lastEl) {
+        lastEl.innerHTML = parseMarkdown(last.content);
+        // Add a typing cursor if still streaming
+        if (isStreaming) {
+          lastEl.innerHTML += '<span class="typing-cursor">|</span>';
+        }
+      }
     }
     return;
   }
 
   let html = '';
   for (const msg of messages) {
+    const contentHtml = msg.role === 'assistant' ? parseMarkdown(msg.content) : escapeHtml(msg.content);
     html += `
       <div class="message ${msg.role}">
-        <div class="message-bubble">${msg.role === 'assistant' ? parseMarkdown(msg.content) : escapeHtml(msg.content)}</div>
+        <div class="message-bubble">${contentHtml}</div>
       </div>
     `;
   }
@@ -201,10 +240,15 @@ async function sendMessage() {
   input.value = '';
   messages.push({ role: 'user', content: text });
   messages.push({ role: 'assistant', content: '' });
+  saveMessages(); // Save instantly
   renderMessages();
 
   isStreaming = true;
-  document.getElementById('send-btn').disabled = true;
+  const sendBtn = document.getElementById('send-btn');
+  if (sendBtn) {
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '<div class="spinner spinner-sm"></div>';
+  }
 
   const assistantIdx = messages.length - 1;
 
@@ -214,38 +258,41 @@ async function sendMessage() {
     selectedMcpIds.size > 0 ? Array.from(selectedMcpIds) : null,
     (token) => {
       messages[assistantIdx].content += token;
+      // We don't save to storage on every token for performance, only on complete
+      // But we render it
       renderMessages();
-      // Auto scroll
       const container = document.getElementById('chat-messages');
       if (container) container.scrollTop = container.scrollHeight;
     },
     () => {
       isStreaming = false;
-      document.getElementById('send-btn').disabled = false;
+      saveMessages(); // Save final response
+      if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = ICONS.SEND;
+      }
       renderMessages();
     },
     (err) => {
       messages[assistantIdx].content = `⚠️ 请求失败: ${err.message}`;
       isStreaming = false;
-      document.getElementById('send-btn').disabled = false;
+      if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = ICONS.SEND;
+      }
       renderMessages();
     }
   );
 }
 
 async function doClearChat() {
+  if (!confirm('确定清空当前对话记录吗？此操作不可撤销。')) return;
   try {
     await clearMemory();
   } catch(e) { /* ignore */ }
   messages = [];
-  const container = document.getElementById('chat-messages');
-  if (container) container.innerHTML = `
-    <div class="empty-state" id="chat-empty">
-      <div class="empty-state-icon">${ICONS.MESSAGE}</div>
-      <div class="empty-state-text" style="font-size:18px;font-weight:600;color:var(--text-primary);margin-bottom:4px">开始对话</div>
-      <div class="empty-state-text">向 AI 助手提问，支持联网搜索和知识库检索。</div>
-    </div>
-  `;
+  sessionStorage.removeItem(STORAGE_KEY);
+  renderMessages();
   window.__toast?.('对话已清空', 'success');
 }
 

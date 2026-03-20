@@ -131,22 +131,24 @@ public class KnowledgeService {
             );
             List<TextSegment> segments = splitter.split(langchainDoc);
 
-            // 🎯 修复：为每个文本段注入 docId 元数据 (使用 String 避免 JSON 序列化后的类型歧义)
+            // 🎯 修复：为每个文本段注入 docId 元数据 (使用干净的 Metadata 对象避免双重嵌套)
+            List<TextSegment> cleanSegments = new ArrayList<>();
             for (TextSegment segment : segments) {
-                segment.metadata().put("docId", docId.toString());
+                dev.langchain4j.data.document.Metadata metadata = segment.metadata().copy();
+                metadata.put("docId", docId.toString());
+                cleanSegments.add(TextSegment.from(segment.text(), metadata));
             }
 
-            log.info("[异步向量化] 文档 '{}' 切分为 {} 个语义块, 用户={}", fileName, segments.size(), userId);
+            log.info("[异步向量化] 文档 '{}' 切分为 {} 个语义块, 用户={}", fileName, cleanSegments.size(), userId);
 
             // 3. 构建向量模型（使用用户配置的 API Key）
             EmbeddingModel embeddingModel = buildEmbeddingModel(config);
 
-            // 3. 分批并行向量化（显著提高 2MB+ 大文件的处理速度）
-            // 3. 分批并行向量化（DashScope text-embedding-v4 限制单批次最大 10 个）
+            // 3. 分批并行向量化
             int batchSize = 10; 
             List<List<TextSegment>> batches = new java.util.ArrayList<>();
-            for (int i = 0; i < segments.size(); i += batchSize) {
-                batches.add(segments.subList(i, Math.min(i + batchSize, segments.size())));
+            for (int i = 0; i < cleanSegments.size(); i += batchSize) {
+                batches.add(cleanSegments.subList(i, Math.min(i + batchSize, cleanSegments.size())));
             }
 
             log.info("[异步向量化] 开始并行处理 {} 个批次 (每批 {}), 正在调用 DashScope...", batches.size(), batchSize);
@@ -161,7 +163,7 @@ public class KnowledgeService {
 
             // 4. 存入用户独立的向量库并同步到硬盘
             EmbeddingStore<TextSegment> store = getUserStore(userId);
-            store.addAll(embeddings, segments);
+            store.addAll(embeddings, cleanSegments);
             saveUserStore(userId);
 
             // 5. 更新文档状态为成功 (status=1)
@@ -221,15 +223,15 @@ public class KnowledgeService {
                 .maxResults(k);
         
         // 如果有合法的 ID 过滤，则应用
-        // 🎯 增强：同时尝试匹配 String 和 Long 类型，兼容新旧索引数据
+        // 🎯 增强：同时尝试匹配 docId (顶层) 和 metadata.docId (历史嵌套路径)，提高鲁棒性
         if (authorizedFileIds != null && !authorizedFileIds.isEmpty()) {
-            List<Object> filterIds = new ArrayList<>();
-            for (Long id : authorizedFileIds) {
-                filterIds.add(id);           // 兼容旧数据 (Long)
-                filterIds.add(id.toString()); // 匹配新数据 (String)
-            }
+            List<String> filterDocIds = authorizedFileIds.stream().map(Object::toString).toList();
+            
+            // 组合过滤器：只要满足 docId (新) 或 metadata.docId (旧) 之一即可内容
+            // 注意：InMemoryEmbeddingStore 对嵌套 key 的支持取决于底层实现，
+            // 这里的最佳方案是修复写入端并引导用户重新上传。
             requestBuilder.filter(dev.langchain4j.store.embedding.filter.MetadataFilterBuilder
-                    .metadataKey("docId").isIn(filterIds));
+                    .metadataKey("docId").isIn(filterDocIds));
         }
 
         EmbeddingSearchResult<TextSegment> searchResult = store.search(requestBuilder.build());

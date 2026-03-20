@@ -162,6 +162,18 @@ export async function chatStream(message, fileIds, mcpServerIds, onToken, onDone
         }
       }
     }
+    // Process any remaining data in the buffer
+    if (buffer.trim()) {
+      const remainingLines = buffer.split('\n');
+      for (const line of remainingLines) {
+        if (line.startsWith('data:')) {
+          const payload = line.substring(5).trim();
+          if (payload !== 'done' && payload !== '[DONE]') {
+            onToken?.(payload);
+          }
+        }
+      }
+    }
     onDone?.();
   } catch (e) {
     onError?.(e);
