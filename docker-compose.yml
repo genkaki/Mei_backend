@@ -1,0 +1,90 @@
+services:
+  app:
+    build: .
+    container_name: meistudio-app
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/meistudio_db?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&createDatabaseIfNotExist=true
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-root}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-Meistudio_666}
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
+      - JWT_SECRET=${JWT_SECRET:-MeiStudioSecretKey2026SpringBootRAGProjectForResumeDemo}
+      - MAIL_USERNAME=${MAIL_USERNAME:-meistudio_service@163.com}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-LG69WSehznZUdJJB}
+    depends_on:
+      - mysql
+      - redis
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+    networks:
+      - meistudio-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: meistudio-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    depends_on:
+      - app
+    networks:
+      - meistudio-network
+
+  certbot:
+    image: certbot/certbot
+    container_name: meistudio-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    command: renew
+    networks:
+      - meistudio-network
+
+  mysql:
+    image: mysql:8.0
+    container_name: meistudio-mysql
+    restart: always
+    environment:
+      - MYSQL_DATABASE=meistudio_db
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD:-Meistudio_666}
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    networks:
+      - meistudio-network
+
+  redis:
+    image: redis:alpine
+    container_name: meistudio-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    networks:
+      - meistudio-network
+
+networks:
+  meistudio-network:
+    driver: bridge

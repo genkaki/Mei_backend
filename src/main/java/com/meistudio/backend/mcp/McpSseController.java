@@ -2,8 +2,8 @@ package com.meistudio.backend.mcp;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meistudio.backend.mcp.McpProtocol.*;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -34,14 +34,18 @@ import java.util.concurrent.ConcurrentHashMap;
  * - 使用 ConcurrentHashMap 管理活跃会话，支持多客户端并发连接。
  * - SSE 断开时自动清理会话，防止内存泄漏。
  */
-@Slf4j
 @RestController
 @RequestMapping("/mcp")
-@RequiredArgsConstructor
 public class McpSseController {
+    private static final Logger log = LoggerFactory.getLogger(McpSseController.class);
 
     private final McpServerCore mcpServerCore;
     private final ObjectMapper objectMapper;
+
+    public McpSseController(McpServerCore mcpServerCore, ObjectMapper objectMapper) {
+        this.mcpServerCore = mcpServerCore;
+        this.objectMapper = objectMapper;
+    }
 
     /**
      * 活跃 SSE 会话注册表。

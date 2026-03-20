@@ -26,9 +26,9 @@ public class AsyncConfig {
     @Bean(name = "vectorTaskExecutor")
     public Executor vectorTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(2);        // 核心线程 2 个（够用，向量化是 IO 密集型）
-        executor.setMaxPoolSize(5);         // 最大 5 个线程
-        executor.setQueueCapacity(20);      // 队列容量 20（最多排队 20 个上传任务）
+        executor.setCorePoolSize(4);        // 核心线程 4 个
+        executor.setMaxPoolSize(10);        // 最大 10 个线程
+        executor.setQueueCapacity(50);      // 队列容量 50
         executor.setThreadNamePrefix("vector-task-");  // 日志中的线程名前缀
         executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
         executor.initialize();

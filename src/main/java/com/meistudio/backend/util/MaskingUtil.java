@@ -7,7 +7,7 @@ package com.meistudio.backend.util;
  * 防止因日志泄露导致的用户资产被盗刷。
  *
  * 示例：
- *   输入: "sk-28d25e803aa94d3891c2598db686fdd2"
+ *   输入: "sk-2acf9ded37094e5f82dee3466625a1b1"
  *   输出: "sk-28d2****fdd2"
  */
 public class MaskingUtil {

@@ -2,11 +2,12 @@ package com.meistudio.backend.aspect;
 
 import com.meistudio.backend.common.UserContext;
 import com.meistudio.backend.util.MaskingUtil;
-import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -24,10 +25,10 @@ import java.util.Map;
  *
  * 不影响业务逻辑，纯旁路记录，满足审计合规需求。
  */
-@Slf4j
 @Aspect
 @Component
 public class LogAspect {
+    private static final Logger log = LoggerFactory.getLogger(LogAspect.class);
 
     /**
      * 切入点：拦截 controller 包下所有类的所有 public 方法。

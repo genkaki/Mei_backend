@@ -1,5 +1,7 @@
 package com.meistudio.backend.service;
 
+import com.meistudio.backend.entity.McpServer;
+import com.meistudio.backend.entity.UserConfig;
 import com.meistudio.backend.mcp.client.McpClientManager;
 import com.meistudio.backend.service.tool.WebSearchTool;
 import dev.langchain4j.memory.ChatMemory;
@@ -12,7 +14,14 @@ import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
 import dev.langchain4j.service.tool.ToolExecutor;
 import dev.langchain4j.service.SystemMessage;
-import lombok.extern.slf4j.Slf4j;
+import dev.langchain4j.service.TokenStream;
+import dev.langchain4j.model.chat.StreamingChatLanguageModel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -44,9 +53,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *    采用 MessageWindowChatMemory 限制上下文长度为最近 N 轮对话，
  *    既防止 Token 消耗无限膨胀，又保持足够的对话连贯性。
  */
-@Slf4j
 @Service
 public class AgentService {
+    private static final Logger log = LoggerFactory.getLogger(AgentService.class);
 
     @Value("${dashscope.api-key:}")
     private String apiKey;
@@ -59,6 +68,8 @@ public class AgentService {
 
     private final WebSearchTool webSearchTool;
     private final McpClientManager mcpClientManager;
+    private final KnowledgeService knowledgeService;
+    private final UserConfigService userConfigService;
 
     /**
      * 用户级别的 Agent 会话隔离。
@@ -79,24 +90,57 @@ public class AgentService {
      * @SystemMessage 注解定义了 Agent 的系统提示词（Prompt Engineering），
      * 引导大模型在推理时正确判断何时需要调用搜索工具。
      */
-    interface SearchAgent {
+    public interface SearchAgent {
         @SystemMessage("""
-                你是 MeiStudio 智能助手，具备联网搜索能力。
+                你是 MeiStudio 智能助手，当前大模型驱动由 {{model_name}} 提供。
+                你具备联网搜索和 MCP 插件能力。
                 当前日期是：{{current_date}}。
                 
                 行为准则：
-                1. 当用户询问实时信息（如天气、新闻、股价、最新政策、考试分数线等）时，你必须调用搜索工具获取最新数据，切勿凭空编造。
-                2. 当用户询问常识性或技术性知识（如编程语法、数学公式、历史事实等）时，请直接回答，无需调用搜索工具。
-                3. 引用搜索结果时，务必在回答末尾标注信息来源链接。
-                4. 如果搜索结果与用户问题相关性不高，请如实告知，不要强行拼凑答案。
-                5. 使用中文回答。
+                1. 当用户询问实时信息（如天气、新闻、最新趋势等）时，你必须调用搜索工具。
+                2. 当用户要求画图、查询专业数据库或执行特定任务时，你必须通过 MCP 插件调用对应的工具。
+                3. 请使用中文回答，并保持专业、友好的语气。
                 """)
-        String chat(@V("current_date") String currentDate, @UserMessage String userMessage);
+        String chat(@V("current_date") String currentDate, @V("model_name") String modelName, @UserMessage String userMessage);
     }
 
-    public AgentService(WebSearchTool webSearchTool, McpClientManager mcpClientManager) {
+    /**
+     * 流式 Agent 接口。
+     */
+    public interface StreamingSearchAgent {
+        @SystemMessage("""
+                你是 MeiStudio 智能助手，当前大模型驱动由 {{model_name}} 提供。
+                你具备联网搜索和 MCP 插件能力。
+                当前日期是：{{current_date}}。
+                
+                行为准则：
+                1. 当用户询问实时信息（如天气、新闻、最新趋势等）时，你必须调用搜索工具。
+                2. 当用户要求画图、查询专业数据库或执行特定任务时，你必须通过 MCP 插件调用对应的工具。
+                3. 请使用中文回答，并保持专业、友好的语气。
+                """)
+        TokenStream chat(@V("current_date") String currentDate, @V("model_name") String modelName, @UserMessage String userMessage);
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class AgentConfig {
+        private String baseUrl;
+        private String apiKey;
+        private String modelName;
+        private List<Long> fileIds;
+        private List<Long> mcpServerIds;
+        @Builder.Default
+        private Double temperature = 0.7;
+    }
+
+    public AgentService(WebSearchTool webSearchTool, McpClientManager mcpClientManager, 
+                        KnowledgeService knowledgeService, UserConfigService userConfigService) {
         this.webSearchTool = webSearchTool;
         this.mcpClientManager = mcpClientManager;
+        this.knowledgeService = knowledgeService;
+        this.userConfigService = userConfigService;
     }
 
     /**
@@ -107,39 +151,33 @@ public class AgentService {
      * @param userMessage 用户输入的自然语言消息
      * @return Agent 的最终回答（已整合搜索结果）
      */
-    public String chat(Long userId, String userMessage) {
-        log.info("[Agent] 收到请求: userId={}, message={}", userId,
-                userMessage.length() > 100 ? userMessage.substring(0, 100) + "..." : userMessage);
+    public String chat(Long userId, String userMessage, List<Long> fileIds) {
+        AgentConfig config = AgentConfig.builder()
+                .fileIds(fileIds)
+                .build();
+        return chat(userId, userMessage, config);
+    }
 
-        long startTime = System.currentTimeMillis();
+    public String chat(Long userId, String userMessage, AgentConfig config) {
+        log.info("[Agent] 收到请求: userId={}, message={}", userId, 
+                userMessage.length() > 60 ? userMessage.substring(0, 60) + "..." : userMessage);
 
-        try {
-            SearchAgent agent = userAgents.computeIfAbsent(userId, this::createAgent);
-            String response = agent.chat(LocalDate.now().toString(), userMessage);
+        String enrichedMessage = enrichMessageWithRAG(userMessage, config.getFileIds());
+        UserConfig userConfig = userConfigService.getUserConfig(userId);
+        SearchAgent agent = userAgents.computeIfAbsent(userId, id -> createAgent(id, config, userConfig));
+        String effectiveModelName = (config.getModelName() != null && !config.getModelName().isEmpty()) ? config.getModelName() : userConfig.getChatModel();
+        return agent.chat(LocalDate.now().toString(), effectiveModelName, enrichedMessage);
+    }
 
-            long costMs = System.currentTimeMillis() - startTime;
-            log.info("[Agent] 响应完成: userId={}, 耗时={}ms, 响应长度={}", userId, costMs, response.length());
-
-            return response;
-
-        } catch (Exception e) {
-            long costMs = System.currentTimeMillis() - startTime;
-            log.error("[Agent] 处理失败: userId={}, 耗时={}ms, 错误={}", userId, costMs, e.getMessage());
-
-            // 状态恢复逻辑：发生异常时清除该用户的 Agent 实例，防止后续尝试出现“Duplicated message”警告（因为 ChatMemory 状态可能已乱）
-            userAgents.remove(userId);
-
-            // 健壮性优化 (面试加分点): 专门处理大模型平台的 API 异常
-            if (e.getCause() instanceof com.alibaba.dashscope.exception.ApiException apiException) {
-                String errorCode = apiException.getStatus().getCode();
-                if ("AllocationQuota.FreeTierOnly".equals(errorCode) || "AllocationQuota.Exhausted".equals(errorCode)) {
-                    return "【系统提示】大模型免费额度已用尽。请在 application.yml 中更换 model-name (如 qwen-turbo) 或前往阿里云控制台开启计费。";
-                }
-                return "【大模型服务异常】" + apiException.getMessage();
-            }
-
-            return "【Agent 繁忙】服务暂时不可用，请稍后再试。错误类型: " + e.getClass().getSimpleName();
-        }
+    public TokenStream chatStream(Long userId, String userMessage, AgentConfig config) {
+        log.info("[Agent] 收到流式请求: userId={}, model={}", userId, config.getModelName());
+        
+        String enrichedMessage = enrichMessageWithRAG(userMessage, config.getFileIds());
+        UserConfig userConfig = userConfigService.getUserConfig(userId);
+        StreamingSearchAgent agent = createStreamingAgent(userId, config, userConfig);
+        String effectiveModelName = (config.getModelName() != null && !config.getModelName().isEmpty()) ? config.getModelName() : userConfig.getChatModel();
+        
+        return agent.chat(LocalDate.now().toString(), effectiveModelName, enrichedMessage);
     }
 
     /**
@@ -150,53 +188,121 @@ public class AgentService {
         log.info("[Agent] 已清除用户会话记忆: userId={}", userId);
     }
 
-    /**
-     * 为指定用户创建独立的 Agent 实例。
-     * 每个 Agent 实例包含：
-     * - 一个通义千问对话模型（ChatLanguageModel）
-     * - 一个联网搜索工具（WebSearchTool）
-     * - 一个独立的对话记忆窗口（ChatMemory）
-     * - 一个系统提示词（System Prompt），定义 Agent 的行为准则
-     */
-    private SearchAgent createAgent(Long userId) {
-        log.info("[Agent] 为用户创建新的 Agent 实例: userId={}, model={}", userId, modelName);
+    private String enrichMessageWithRAG(String userMessage, List<Long> fileIds) {
+        if (fileIds == null || fileIds.isEmpty()) {
+            return userMessage;
+        }
+        try {
+            List<String> contextChunks = knowledgeService.search(userMessage, 10, fileIds);
+            if (!contextChunks.isEmpty()) {
+                String context = String.join("\n\n", contextChunks);
+                return String.format("""
+                        【参考资料】以下是从用户上传的附件中检索出的相关内容，请优先根据这些资料回答：
+                        ---
+                        %s
+                        
+                        ---
+                        【用户问题】
+                        %s
+                        
+                        请结合参考资料给出准确、详细的回答。如果参考资料未直接提及，可以基于模型原有知识进行补充，但应明确区分。
+                        """, context, userMessage);
+            }
+        } catch (Exception e) {
+            log.warn("[Agent] RAG 检索失败: {}", e.getMessage());
+        }
+        return userMessage;
+    }
 
-        // 1. 构建 OpenAI 兼容模型（指向 DashScope 兼容接口）
-        // 为什么要这么做？（面试亮点）：
-        // 因为 DashScope 的原生 SDK 对新出的 Omni/多模态模型路径支持不佳，容易报 400 URL Error。
-        // 使用 OpenAI 兼容模式不仅更稳定，还能体现架构的“解耦”思想——未来只需改配置，即可无缝切换 DeepSeek 或 GPT-4。
-        ChatLanguageModel chatModel = OpenAiChatModel.builder()
-                .apiKey(apiKey)
-                .modelName(modelName)
-                .baseUrl("https://dashscope.aliyuncs.com/compatible-mode/v1") // 关键：指向 OpenAI 兼容端点
-                .build();
-
-        // 2. 构建用户独占的滑动窗口记忆
+    private SearchAgent createAgent(Long userId, AgentConfig config, UserConfig userConfig) {
+        ChatLanguageModel chatModel = buildChatModel(config, userConfig);
+        
         ChatMemory memory = MessageWindowChatMemory.builder()
                 .maxMessages(memoryWindowSize)
                 .build();
 
-        // 3. 获取用户配置的 MCP 工具（动态能力扩展）
-        List<ToolSpecification> mcpSpecs = mcpClientManager.getToolSpecsForUser(userId);
-        List<ToolExecutor> mcpExecutors = mcpClientManager.getToolExecutorsForUser(userId);
+        List<ToolSpecification> mcpSpecs = mcpClientManager.getToolSpecsForUser(userId, config.getMcpServerIds());
+        List<ToolExecutor> mcpExecutors = mcpClientManager.getToolExecutorsForUser(userId, config.getMcpServerIds());
 
-        // 4. 使用 AiServices 动态代理构建 Agent
         var builder = AiServices.builder(SearchAgent.class)
                 .chatLanguageModel(chatModel)
                 .chatMemory(memory)
-                .tools(webSearchTool);  // 内置工具始终可用
+                .tools(webSearchTool);
 
-        // 动态注入 MCP 工具（如果用户配置了 MCP Server）
         if (!mcpSpecs.isEmpty()) {
-            // 将 MCP 工具规格与执行器对应绑定
             Map<ToolSpecification, ToolExecutor> mcpToolMap = new java.util.LinkedHashMap<>();
             for (int i = 0; i < mcpSpecs.size(); i++) {
                 mcpToolMap.put(mcpSpecs.get(i), mcpExecutors.get(i));
             }
             builder.tools(mcpToolMap);
-            log.info("[Agent] 已注入 {} 个 MCP 工具: userId={}", mcpSpecs.size(), userId);
         }
 
         return builder.build();
+    }
+
+    private StreamingSearchAgent createStreamingAgent(Long userId, AgentConfig config, UserConfig userConfig) {
+        StreamingChatLanguageModel chatModel = buildStreamingChatModel(config, userConfig);
+        
+        ChatMemory memory = MessageWindowChatMemory.builder()
+                .maxMessages(memoryWindowSize)
+                .build();
+
+        List<ToolSpecification> mcpSpecs = mcpClientManager.getToolSpecsForUser(userId, config.getMcpServerIds());
+        List<ToolExecutor> mcpExecutors = mcpClientManager.getToolExecutorsForUser(userId, config.getMcpServerIds());
+
+        var builder = AiServices.builder(StreamingSearchAgent.class)
+                .streamingChatLanguageModel(chatModel)
+                .chatMemory(memory)
+                .tools(webSearchTool);
+
+        if (!mcpSpecs.isEmpty()) {
+            Map<ToolSpecification, ToolExecutor> mcpToolMap = new java.util.LinkedHashMap<>();
+            for (int i = 0; i < mcpSpecs.size(); i++) {
+                mcpToolMap.put(mcpSpecs.get(i), mcpExecutors.get(i));
+            }
+            builder.tools(mcpToolMap);
+        }
+
+        return builder.build();
+    }
+
+    private ChatLanguageModel buildChatModel(AgentConfig config, UserConfig userConfig) {
+        String effectiveApiKey = (config.getApiKey() != null && !config.getApiKey().isEmpty() && !config.getApiKey().contains("managed-by-backend")) 
+                ? config.getApiKey() : userConfig.getDashscopeApiKey();
+        
+        if (effectiveApiKey == null || effectiveApiKey.isBlank()) {
+            throw new IllegalArgumentException("您的 AI 对话引擎尚未启动。网页端用户由于独立成本核算，需“自带 Key (BYOK)”。请点击左侧‘系统设置’配置个人 API 秘钥。");
+        }
+        String effectiveModelName = (config.getModelName() != null && !config.getModelName().isEmpty() && !config.getModelName().equals("meistudio-cloud-agent")) 
+                ? config.getModelName() : userConfig.getChatModel();
+        String effectiveBaseUrl = (config.getBaseUrl() != null && !config.getBaseUrl().isEmpty() && !config.getBaseUrl().equals("managed-by-backend")) 
+                ? config.getBaseUrl() : "https://dashscope.aliyuncs.com/compatible-mode/v1";
+
+        return OpenAiChatModel.builder()
+                .apiKey(effectiveApiKey)
+                .modelName(effectiveModelName)
+                .baseUrl(effectiveBaseUrl)
+                .temperature(config.getTemperature())
+                .build();
+    }
+
+    private StreamingChatLanguageModel buildStreamingChatModel(AgentConfig config, UserConfig userConfig) {
+        String effectiveApiKey = (config.getApiKey() != null && !config.getApiKey().isEmpty() && !config.getApiKey().contains("managed-by-backend")) 
+                ? config.getApiKey() : userConfig.getDashscopeApiKey();
+
+        if (effectiveApiKey == null || effectiveApiKey.isBlank()) {
+            throw new IllegalArgumentException("AI 对话引擎初始化失败。网页端用户请在‘系统设置’中填入私有的 DashScope API Key。");
+        }
+        String effectiveModelName = (config.getModelName() != null && !config.getModelName().isEmpty() && !config.getModelName().equals("meistudio-cloud-agent")) 
+                ? config.getModelName() : userConfig.getChatModel();
+        String effectiveBaseUrl = (config.getBaseUrl() != null && !config.getBaseUrl().isEmpty() && !config.getBaseUrl().equals("managed-by-backend")) 
+                ? config.getBaseUrl() : "https://dashscope.aliyuncs.com/compatible-mode/v1";
+
+        return dev.langchain4j.model.openai.OpenAiStreamingChatModel.builder()
+                .apiKey(effectiveApiKey)
+                .modelName(effectiveModelName)
+                .baseUrl(effectiveBaseUrl)
+                .temperature(config.getTemperature())
+                .build();
     }
 }

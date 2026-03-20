@@ -5,8 +5,8 @@ import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.agent.tool.ToolParameters;
 import dev.langchain4j.service.tool.ToolExecutor;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,16 +26,21 @@ import java.util.Map;
  *    与传统的 @Tool 注解（编译期绑定）不同，MCP 工具在运行时通过 tools/list 动态发现。
  *    这实现了 Agent 能力的"热插拔"——用户添加新的 MCP Server 后，Agent 无需重启即可获得新工具。
  */
-@Slf4j
 public class McpToolProxy {
+    private static final Logger log = LoggerFactory.getLogger(McpToolProxy.class);
 
     private final McpServerConnection connection;
 
-    @Getter
     private final List<ToolSpecification> toolSpecifications;
-
-    @Getter
     private final List<ToolExecutor> toolExecutors;
+
+    public List<ToolSpecification> getToolSpecifications() {
+        return toolSpecifications;
+    }
+
+    public List<ToolExecutor> getToolExecutors() {
+        return toolExecutors;
+    }
 
     public McpToolProxy(McpServerConnection connection) {
         this.connection = connection;
@@ -79,7 +84,15 @@ public class McpToolProxy {
                 Map<String, Map<String, Object>> toolProperties = new HashMap<>();
                 for (Map.Entry<String, Object> entry : properties.entrySet()) {
                     @SuppressWarnings("unchecked")
-                    Map<String, Object> propValue = (Map<String, Object>) entry.getValue();
+                    Map<String, Object> propValue = new HashMap<>((Map<String, Object>) entry.getValue());
+                    
+                    // 🎯 修复: 某些 MCP Server (如 DashScope) 可能返回 "bool" 而不是 "boolean"
+                    // LangChain4j/Jackson 的 Schema 验证器只认标准 JSON Schema 类型
+                    Object typeObj = propValue.get("type");
+                    if (typeObj instanceof String) {
+                        propValue.put("type", normalizeType((String) typeObj));
+                    }
+                    
                     toolProperties.put(entry.getKey(), propValue);
                 }
 
@@ -93,6 +106,25 @@ public class McpToolProxy {
         }
 
         return builder.build();
+    }
+
+    /**
+     * 规范化 JSON Schema 类型名称。
+     */
+    private String normalizeType(String type) {
+        if (type == null) return "string";
+        switch (type.toLowerCase()) {
+            case "bool":
+                return "boolean";
+            case "int":
+            case "integer":
+                return "number";
+            case "float":
+            case "double":
+                return "number";
+            default:
+                return type;
+        }
     }
 
     /**

@@ -7,6 +7,7 @@ import com.meistudio.backend.service.AgentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -23,10 +24,13 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/agent")
-@RequiredArgsConstructor
 public class AgentController {
 
     private final AgentService agentService;
+
+    public AgentController(AgentService agentService) {
+        this.agentService = agentService;
+    }
 
     /**
      * Agent 对话接口。
@@ -41,17 +45,94 @@ public class AgentController {
      */
     @PostMapping("/chat")
     @RateLimit(maxRequests = 10, windowSeconds = 60, message = "Agent 对话请求过于频繁，请稍后再试")
-    public Result<Map<String, Object>> chat(@RequestBody Map<String, String> body) {
-        String message = body.get("message");
+    public Result<Map<String, Object>> chat(@RequestBody Map<String, Object> body) {
+        String message = (String) body.get("message");
+        AgentService.AgentConfig config = parseConfig(body);
 
         if (message == null || message.isBlank()) {
             return Result.error(400, "消息内容不能为空");
         }
 
         Long userId = UserContext.getUserId();
-        String reply = agentService.chat(userId, message);
+        String reply = agentService.chat(userId, message, config);
 
         return Result.success(Map.of("reply", reply));
+    }
+
+    /**
+     * Agent 流式对话接口 (SSE)。
+     */
+    @PostMapping(value = "/chat-stream", produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter chatStream(@RequestBody Map<String, Object> body) {
+        String message = (String) body.get("message");
+        AgentService.AgentConfig config = parseConfig(body);
+        Long userId = UserContext.getUserId();
+
+        org.springframework.web.servlet.mvc.method.annotation.SseEmitter emitter = 
+            new org.springframework.web.servlet.mvc.method.annotation.SseEmitter(60000L);
+
+        if (message == null || message.isBlank()) {
+            emitter.completeWithError(new IllegalArgumentException("消息内容不能为空"));
+            return emitter;
+        }
+
+        agentService.chatStream(userId, message, config)
+                .onNext(token -> {
+                    try {
+                        emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event()
+                                .name("message")
+                                .data(token));
+                    } catch (Exception e) {
+                        emitter.completeWithError(e);
+                    }
+                })
+                .onComplete(response -> {
+                    try {
+                        emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event()
+                                .name("complete")
+                                .data("done"));
+                        emitter.complete();
+                    } catch (Exception e) {
+                        emitter.completeWithError(e);
+                    }
+                })
+                .onError(emitter::completeWithError)
+                .start();
+
+        return emitter;
+    }
+
+    private AgentService.AgentConfig parseConfig(Map<String, Object> body) {
+        List<Long> fileIds = null;
+        Object rawFileIds = body.get("fileIds");
+        if (rawFileIds instanceof List<?> list) {
+            fileIds = list.stream()
+                .map(obj -> Long.valueOf(obj.toString()))
+                .toList();
+        }
+
+        Double temperature = 0.7;
+        Object rawTemp = body.get("temperature");
+        if (rawTemp instanceof Number num) {
+            temperature = num.doubleValue();
+        }
+
+        List<Long> mcpServerIds = null;
+        Object rawMcpIds = body.get("mcpServerIds");
+        if (rawMcpIds instanceof List<?> list) {
+            mcpServerIds = list.stream()
+                .map(obj -> Long.valueOf(obj.toString()))
+                .toList();
+        }
+
+        return AgentService.AgentConfig.builder()
+                .baseUrl((String) body.get("baseUrl"))
+                .apiKey((String) body.get("apiKey"))
+                .modelName((String) body.get("modelName"))
+                .temperature(temperature)
+                .fileIds(fileIds)
+                .mcpServerIds(mcpServerIds)
+                .build();
     }
 
     /**

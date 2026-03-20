@@ -1,7 +1,8 @@
 package com.meistudio.backend.service.tool;
 
 import dev.langchain4j.agent.tool.Tool;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -27,9 +28,9 @@ import java.util.List;
  * - @Tool 注解的方法会被 LangChain4j 框架自动暴露为 Function Calling 的可用工具。
  *   大模型在推理时，如果判断需要联网搜索，会自主生成对此方法的调用请求。
  */
-@Slf4j
 @Component
 public class WebSearchTool {
+    private static final Logger log = LoggerFactory.getLogger(WebSearchTool.class);
 
     @Value("${agent.max-search-results:5}")
     private int maxSearchResults;

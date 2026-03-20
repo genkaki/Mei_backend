@@ -1,12 +1,16 @@
 package com.meistudio.backend.mcp.client;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meistudio.backend.entity.McpServer;
 import com.meistudio.backend.mapper.McpServerMapper;
+import com.meistudio.backend.service.AgentService;
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.service.tool.ToolExecutor;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -15,22 +19,23 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * MCP 连接池管理器 —— 管理用户配置的所有 MCP Server 连接生命周期。
  *
- * 架构要点（面试高频考点）：
+ * 架构要点：
  * 1. 用户级隔离：每个用户拥有独立的 MCP 连接集合，保证多租户安全。
- * 2. 懒加载策略：MCP 连接在 Agent 创建时才真正建立，避免无效连接占用资源。
- * 3. 连接池化：使用 ConcurrentHashMap 管理连接实例，支持高并发下的安全读写。
- *
- * 设计思想：
- * - 本组件是 AgentService 与外部 MCP 生态之间的桥梁。
- * - AgentService 只需调用 getToolsForUser() 和 getExecutorsForUser() 两个方法，
- *   即可无感知地获取所有 MCP 工具，无需关心连接细节。
+ * 2. 每次对话前检查连接：对比数据库和内存缓存，自动补建缺失的连接。
+ * 3. 容错设计：单个 MCP 连接失败不影响其他服务的正常使用。
  */
-@Slf4j
 @Service
-@RequiredArgsConstructor
 public class McpClientManager {
+    private static final Logger log = LoggerFactory.getLogger(McpClientManager.class);
 
     private final McpServerMapper mcpServerMapper;
+    private final AgentService agentService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    public McpClientManager(McpServerMapper mcpServerMapper, @Lazy AgentService agentService) {
+        this.mcpServerMapper = mcpServerMapper;
+        this.agentService = agentService;
+    }
 
     /**
      * 用户级 MCP 连接缓存。
@@ -41,16 +46,20 @@ public class McpClientManager {
     // ==================== 对外接口（供 AgentService 调用） ====================
 
     /**
-     * 获取某用户的所有 MCP 工具规格（供 LangChain4j AiServices.tools() 使用）。
+     * 获取某用户的所有 MCP 工具规格。
      */
-    public List<ToolSpecification> getToolSpecsForUser(Long userId) {
+    public List<ToolSpecification> getToolSpecsForUser(Long userId, List<Long> serverIds) {
         ensureConnections(userId);
         Map<Long, McpToolProxy> proxies = userToolProxies.get(userId);
         if (proxies == null || proxies.isEmpty()) return Collections.emptyList();
 
         List<ToolSpecification> specs = new ArrayList<>();
-        for (McpToolProxy proxy : proxies.values()) {
-            specs.addAll(proxy.getToolSpecifications());
+        for (Map.Entry<Long, McpToolProxy> entry : proxies.entrySet()) {
+            // 如果指定了服务器列表，且当前服务器不在列表中，则跳过
+            if (serverIds != null && !serverIds.isEmpty() && !serverIds.contains(entry.getKey())) {
+                continue;
+            }
+            specs.addAll(entry.getValue().getToolSpecifications());
         }
         return specs;
     }
@@ -58,14 +67,18 @@ public class McpClientManager {
     /**
      * 获取某用户的所有 MCP 工具执行器（与上面的 specs 一一对应）。
      */
-    public List<ToolExecutor> getToolExecutorsForUser(Long userId) {
+    public List<ToolExecutor> getToolExecutorsForUser(Long userId, List<Long> serverIds) {
         ensureConnections(userId);
         Map<Long, McpToolProxy> proxies = userToolProxies.get(userId);
         if (proxies == null || proxies.isEmpty()) return Collections.emptyList();
 
         List<ToolExecutor> executors = new ArrayList<>();
-        for (McpToolProxy proxy : proxies.values()) {
-            executors.addAll(proxy.getToolExecutors());
+        for (Map.Entry<Long, McpToolProxy> entry : proxies.entrySet()) {
+            // 如果指定了服务器列表，且当前服务器不在列表中，则跳过
+            if (serverIds != null && !serverIds.isEmpty() && !serverIds.contains(entry.getKey())) {
+                continue;
+            }
+            executors.addAll(entry.getValue().getToolExecutors());
         }
         return executors;
     }
@@ -74,33 +87,41 @@ public class McpClientManager {
 
     /**
      * 添加 MCP Server：保存到数据库 + 建立连接 + 工具发现。
-     *
-     * @return 保存后的 McpServer 实体（含发现的工具数量）
      */
-    public McpServer addServer(Long userId, String name, String url) {
-        log.info("[McpClientManager] 添加 MCP Server: userId={}, name={}, url={}", userId, name, url);
+    public McpServer addServer(Long userId, String name, String url, String description,
+                               String type, String headers, String apiKey) {
+        log.info("[McpClientManager] 添加 MCP Server: userId={}, name={}, url={}, type={}",
+                userId, name, url, type);
 
-        // 1. 建立连接并发现工具
-        McpServerConnection connection = new McpServerConnection(name, url);
+        // 1. 解析自定义 Headers
+        Map<String, String> headerMap = buildHeaderMap(headers, apiKey);
+
+        // 2. 建立连接并发现工具
+        McpServerConnection connection = new McpServerConnection(name, url, headerMap);
         int toolCount = connection.connect();
 
-        // 2. 保存到数据库
+        // 3. 保存到数据库
         McpServer server = new McpServer();
         server.setUserId(userId);
         server.setName(name);
+        server.setDescription(description);
         server.setUrl(url);
+        server.setType(type != null && !type.isBlank() ? type : "streamableHttp");
+        server.setHeaders(headers);
+        server.setApiKey(apiKey);
         server.setStatus(connection.isConnected() ? 1 : 0);
         server.setToolCount(toolCount);
+        server.setActive(true);
         mcpServerMapper.insert(server);
 
-        // 3. 缓存连接
+        // 4. 缓存连接
         if (connection.isConnected()) {
             McpToolProxy proxy = new McpToolProxy(connection);
             userToolProxies
                     .computeIfAbsent(userId, k -> new ConcurrentHashMap<>())
                     .put(server.getId(), proxy);
 
-            // 重建该用户的 Agent（使其感知新工具）
+            // 重建该用户的 Agent
             invalidateUserAgent(userId);
         }
 
@@ -125,18 +146,21 @@ public class McpClientManager {
      * 删除 MCP Server：断开连接 + 从数据库删除。
      */
     public void removeServer(Long userId, Long serverId) {
-        log.info("[McpClientManager] 删除 MCP Server: userId={}, serverId={}", userId, serverId);
+        log.info("[McpClientManager] 删除 MCP Server 请求: userId={}, serverId={}", userId, serverId);
 
-        // 1. 断开连接缓存
         Map<Long, McpToolProxy> proxies = userToolProxies.get(userId);
         if (proxies != null) {
             proxies.remove(serverId);
         }
 
-        // 2. 从数据库删除
-        mcpServerMapper.deleteById(serverId);
+        McpServer server = mcpServerMapper.selectById(serverId);
+        if (server != null && server.getUserId().equals(userId)) {
+            log.info("[McpClientManager] 找到服务器记录: {}, 执行删除", server.getName());
+            mcpServerMapper.deleteById(serverId);
+        } else {
+            log.warn("[McpClientManager] 未找到或无权操作 ID={} 的记录", serverId);
+        }
 
-        // 3. 重建该用户的 Agent
         invalidateUserAgent(userId);
     }
 
@@ -149,8 +173,11 @@ public class McpClientManager {
             throw new RuntimeException("MCP Server 不存在或无权限");
         }
 
+        // 解析 Headers
+        Map<String, String> headerMap = buildHeaderMap(server.getHeaders(), server.getApiKey());
+
         // 重新连接
-        McpServerConnection connection = new McpServerConnection(server.getName(), server.getUrl());
+        McpServerConnection connection = new McpServerConnection(server.getName(), server.getUrl(), headerMap);
         int toolCount = connection.connect();
 
         // 更新数据库
@@ -170,54 +197,112 @@ public class McpClientManager {
         return server;
     }
 
-    // ==================== 内部方法 ====================
-
     /**
-     * 确保用户的所有 MCP 连接已建立（懒加载）。
-     * 如果内存中没有缓存，则从数据库加载并逐个连接。
+     * 切换 MCP Server 的激活状态。
      */
-    private void ensureConnections(Long userId) {
-        if (userToolProxies.containsKey(userId)) return;
+    public McpServer toggleActive(Long userId, Long serverId, boolean active) {
+        McpServer server = mcpServerMapper.selectById(serverId);
+        if (server == null || !server.getUserId().equals(userId)) {
+            throw new RuntimeException("MCP Server 不存在或无权限");
+        }
 
-        List<McpServer> servers = listServers(userId);
-        if (servers.isEmpty()) return;
+        server.setActive(active);
+        mcpServerMapper.updateById(server);
 
-        Map<Long, McpToolProxy> proxies = new ConcurrentHashMap<>();
-
-        for (McpServer server : servers) {
-            try {
-                McpServerConnection connection = new McpServerConnection(server.getName(), server.getUrl());
-                int toolCount = connection.connect();
-
-                if (connection.isConnected()) {
-                    proxies.put(server.getId(), new McpToolProxy(connection));
-
-                    // 同步更新数据库状态
-                    server.setStatus(1);
-                    server.setToolCount(toolCount);
-                    mcpServerMapper.updateById(server);
-                }
-            } catch (Exception e) {
-                log.warn("[McpClientManager] 懒加载连接失败: server={}, error={}", server.getName(), e.getMessage());
-                server.setStatus(0);
-                mcpServerMapper.updateById(server);
+        // 如果禁用了，移除缓存中的连接
+        if (!active) {
+            Map<Long, McpToolProxy> proxies = userToolProxies.get(userId);
+            if (proxies != null) {
+                proxies.remove(serverId);
             }
         }
 
-        if (!proxies.isEmpty()) {
-            userToolProxies.put(userId, proxies);
+        invalidateUserAgent(userId);
+        return server;
+    }
+
+    // ==================== 内部方法 ====================
+
+    /**
+     * 将 JSON headers 字符串和 apiKey 合并为 Map。
+     * apiKey 会自动转为 "Authorization: Bearer {apiKey}"，但 headers 中的同名键优先。
+     */
+    private Map<String, String> buildHeaderMap(String headersJson, String apiKey) {
+        Map<String, String> headerMap = new HashMap<>();
+
+        // 1. 如果有 apiKey，先设置为默认 Authorization
+        if (apiKey != null && !apiKey.isBlank()) {
+            headerMap.put("Authorization", "Bearer " + apiKey);
         }
+
+        // 2. 如果有自定义 headers JSON，覆盖到 map 中
+        if (headersJson != null && !headersJson.isBlank()) {
+            try {
+                Map<String, String> parsed = objectMapper.readValue(headersJson, new TypeReference<>() {});
+                headerMap.putAll(parsed);
+            } catch (Exception e) {
+                log.warn("[McpClientManager] 解析自定义 Headers 失败: {}", e.getMessage());
+            }
+        }
+
+        return headerMap;
     }
 
     /**
-     * 使指定用户的 Agent 实例失效，迫使下次对话时重建（以感知新工具）。
-     * 这里通过 Spring Event 或直接调用 AgentService.clearMemory 实现。
-     * 当前采用简单策略：清除工具代理缓存，AgentService 会在下次请求时重建。
+     * 确保用户的所有 MCP 连接已建立。
+     * 
+     * 核心逻辑（修复重启丢失问题）：
+     * 1. 每次调用都从数据库查询 active=true 的服务器列表
+     * 2. 对比内存缓存，找到缺失的连接并补建
+     * 3. 单个连接失败不影响其他服务，仅标记为离线
      */
+    private void ensureConnections(Long userId) {
+        List<McpServer> activeServers = mcpServerMapper.selectList(
+                new LambdaQueryWrapper<McpServer>()
+                        .eq(McpServer::getUserId, userId)
+                        .eq(McpServer::getActive, true)
+                        .orderByDesc(McpServer::getCreatedAt)
+        );
+
+        if (activeServers.isEmpty()) return;
+
+        Map<Long, McpToolProxy> existingProxies = userToolProxies.computeIfAbsent(userId, k -> new ConcurrentHashMap<>());
+
+        for (McpServer server : activeServers) {
+            // 已有连接的跳过
+            if (existingProxies.containsKey(server.getId())) {
+                continue;
+            }
+
+            // 缺失连接 → 尝试建立
+            try {
+                log.info("[McpClientManager] 恢复连接: name={}, url={}", server.getName(), server.getUrl());
+                Map<String, String> headerMap = buildHeaderMap(server.getHeaders(), server.getApiKey());
+                McpServerConnection connection = new McpServerConnection(server.getName(), server.getUrl(), headerMap);
+                int toolCount = connection.connect();
+
+                if (connection.isConnected()) {
+                    existingProxies.put(server.getId(), new McpToolProxy(connection));
+                    server.setStatus(1);
+                    server.setToolCount(toolCount);
+                    mcpServerMapper.updateById(server);
+                    log.info("[McpClientManager] 恢复成功: name={}, 工具数={}", server.getName(), toolCount);
+                } else {
+                    log.warn("[McpClientManager] 恢复失败（离线）: name={}", server.getName());
+                    server.setStatus(0);
+                    mcpServerMapper.updateById(server);
+                }
+            } catch (Exception e) {
+                log.warn("[McpClientManager] 恢复连接异常: server={}, error={}", server.getName(), e.getMessage());
+                server.setStatus(0);
+                mcpServerMapper.updateById(server);
+                // 不抛异常 → 继续处理下一个服务器
+            }
+        }
+    }
+
     private void invalidateUserAgent(Long userId) {
-        // AgentService 的 userAgents 在每次 chat 时通过 computeIfAbsent 懒创建，
-        // 此处只需要确保 MCP 工具缓存是最新的即可。
-        // 如果需要立刻生效，可以通过 Spring Event 通知 AgentService 清除该用户的 Agent。
-        log.info("[McpClientManager] 用户 {} 的工具配置已变更，下次对话将重建 Agent", userId);
+        log.info("[McpClientManager] 用户 {} 的工具配置已变更，正在清理 Agent 缓存以同步工具列表", userId);
+        agentService.clearMemory(userId);
     }
 }

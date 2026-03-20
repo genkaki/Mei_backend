@@ -2,11 +2,13 @@ package com.meistudio.backend.service;
 
 import com.meistudio.backend.common.UserContext;
 import com.meistudio.backend.entity.Document;
+import com.meistudio.backend.entity.UserConfig;
 import com.meistudio.backend.mapper.DocumentMapper;
 import dev.langchain4j.data.document.DocumentSplitter;
 import dev.langchain4j.data.document.splitter.DocumentSplitters;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
+import dev.langchain4j.data.document.parser.apache.tika.ApacheTikaDocumentParser;
 import dev.langchain4j.model.dashscope.QwenEmbeddingModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
@@ -14,7 +16,8 @@ import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingSearchResult;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -22,8 +25,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -42,11 +47,12 @@ import java.util.stream.Collectors;
  * - 分批处理：自动将大文档按每 10 个 chunk 一批发送给阿里，避免 batch size 限制。
  * - 租户隔离：每个用户拥有独立的向量存储空间，互不干扰。
  */
-@Slf4j
 @Service
 public class KnowledgeService {
+    private static final Logger log = LoggerFactory.getLogger(KnowledgeService.class);
 
     private final DocumentMapper documentMapper;
+    private final UserConfigService userConfigService;
 
     @Value("${knowledge.chunk-size:500}")
     private int chunkSize;
@@ -60,14 +66,18 @@ public class KnowledgeService {
     @Value("${dashscope.api-key:}")
     private String defaultApiKey;
 
+    @Value("${knowledge.vector-store-path:storage/vector_store}")
+    private String vectorStorePath;
+
     /**
      * 用户级别的向量存储隔离。
      * 每个用户拥有独立的向量空间，保证数据安全。
      */
     private final Map<Long, EmbeddingStore<TextSegment>> userStores = new ConcurrentHashMap<>();
 
-    public KnowledgeService(DocumentMapper documentMapper) {
+    public KnowledgeService(DocumentMapper documentMapper, UserConfigService userConfigService) {
         this.documentMapper = documentMapper;
+        this.userConfigService = userConfigService;
     }
 
     /**
@@ -84,14 +94,13 @@ public class KnowledgeService {
         Document doc = new Document();
         doc.setUserId(userId);
         doc.setFileName(file.getOriginalFilename());
+        doc.setFileSize(file.getSize());
         doc.setStatus(0);
         documentMapper.insert(doc);
 
-        // 2. 读取文件内容
-        String content = new String(file.getBytes(), StandardCharsets.UTF_8);
-
-        // 3. 将向量化任务交给异步线程池
-        processDocumentAsync(doc.getId(), userId, file.getOriginalFilename(), content);
+        // 2. 读取文件内容并进行向量化处理
+        // 注意：不建议将文件字节转为 String，因为 PDF/Word 是二进制格式
+        processDocumentAsync(doc.getId(), userId, file.getOriginalFilename(), file.getBytes());
 
         return doc.getId();
     }
@@ -106,30 +115,54 @@ public class KnowledgeService {
      * @param content  文件内容
      */
     @Async("vectorTaskExecutor")
-    public void processDocumentAsync(Long docId, Long userId, String fileName, String content) {
+    public void processDocumentAsync(Long docId, Long userId, String fileName, byte[] bytes) {
         try {
-            // 1. 使用 LangChain4j DocumentSplitter 切分文本
-            DocumentSplitter splitter = DocumentSplitters.recursive(chunkSize, chunkOverlap);
-            dev.langchain4j.data.document.Document langchainDoc =
-                    dev.langchain4j.data.document.Document.from(content);
+            // 1. 使用 Apache Tika 解析文档内容（支持 PDF, Word, TXT 等）
+            java.io.InputStream inputStream = new java.io.ByteArrayInputStream(bytes);
+            dev.langchain4j.data.document.Document langchainDoc = new ApacheTikaDocumentParser().parse(inputStream);
+            
+            // 2. 获取用户个性化配置，用于切分和向量化
+            UserConfig config = userConfigService.getUserConfig(userId);
+
+            // 3. 使用 LangChain4j DocumentSplitter 切分文本
+            DocumentSplitter splitter = DocumentSplitters.recursive(
+                    config.getChunkSize() != null ? config.getChunkSize() : chunkSize,
+                    config.getChunkOverlap() != null ? config.getChunkOverlap() : chunkOverlap
+            );
             List<TextSegment> segments = splitter.split(langchainDoc);
+
+            // 🎯 修复：为每个文本段注入 docId 元数据 (使用 String 避免 JSON 序列化后的类型歧义)
+            for (TextSegment segment : segments) {
+                segment.metadata().put("docId", docId.toString());
+            }
 
             log.info("[异步向量化] 文档 '{}' 切分为 {} 个语义块, 用户={}", fileName, segments.size(), userId);
 
-            // 2. 构建向量模型（统一使用配置的 API Key）
-            EmbeddingModel embeddingModel = buildEmbeddingModel();
+            // 3. 构建向量模型（使用用户配置的 API Key）
+            EmbeddingModel embeddingModel = buildEmbeddingModel(config);
 
-            // 3. 分批向量化（每批 10 个，规避阿里 batch size 限制）
-            List<Embedding> embeddings = new java.util.ArrayList<>();
-            for (int i = 0; i < segments.size(); i += 10) {
-                int end = Math.min(i + 10, segments.size());
-                List<TextSegment> batch = segments.subList(i, end);
-                embeddings.addAll(embeddingModel.embedAll(batch).content());
+            // 3. 分批并行向量化（显著提高 2MB+ 大文件的处理速度）
+            // 3. 分批并行向量化（DashScope text-embedding-v4 限制单批次最大 10 个）
+            int batchSize = 10; 
+            List<List<TextSegment>> batches = new java.util.ArrayList<>();
+            for (int i = 0; i < segments.size(); i += batchSize) {
+                batches.add(segments.subList(i, Math.min(i + batchSize, segments.size())));
             }
 
-            // 4. 存入用户独立的向量库
+            log.info("[异步向量化] 开始并行处理 {} 个批次 (每批 {}), 正在调用 DashScope...", batches.size(), batchSize);
+            List<CompletableFuture<List<Embedding>>> futures = batches.stream()
+                    .map(batch -> CompletableFuture.supplyAsync(() -> embeddingModel.embedAll(batch).content()))
+                    .collect(Collectors.toList());
+
+            List<Embedding> embeddings = futures.stream()
+                    .map(CompletableFuture::join)
+                    .flatMap(List::stream)
+                    .collect(Collectors.toList());
+
+            // 4. 存入用户独立的向量库并同步到硬盘
             EmbeddingStore<TextSegment> store = getUserStore(userId);
             store.addAll(embeddings, segments);
+            saveUserStore(userId);
 
             // 5. 更新文档状态为成功 (status=1)
             updateDocumentStatus(docId, 1);
@@ -147,31 +180,76 @@ public class KnowledgeService {
      *
      * @param question 用户的问题
      * @param topK     返回的结果数量
+     * @param fileIds  可选：限定检索的文件 ID 列表
      * @return 最相关文本段落列表
      */
-    public List<String> search(String question, Integer topK) {
+    public List<String> search(String question, Integer topK, List<Long> fileIds) {
         Long userId = UserContext.getUserId();
-        int k = (topK != null && topK > 0) ? topK : defaultTopK;
+        UserConfig config = userConfigService.getUserConfig(userId);
+        int k = (topK != null && topK > 0) ? topK : (config.getTopK() != null ? config.getTopK() : defaultTopK);
+
+        // 🎯 增强：校验并过滤 fileIds，确保仅检索属于当前用户的文档
+        List<Long> authorizedFileIds = null;
+        if (fileIds != null && !fileIds.isEmpty()) {
+            authorizedFileIds = documentMapper.selectList(
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Document>()
+                            .eq(Document::getUserId, userId)
+                            .in(Document::getId, fileIds)
+            ).stream().map(Document::getId).toList();
+            
+            log.info("[知识库检索] 用户={}, 原始 IDs={}, 授权后 IDs={}", userId, fileIds, authorizedFileIds);
+
+            // 如果传入了 ID 过滤但无一匹配当前用户，直接返回空
+            if (authorizedFileIds.isEmpty()) {
+                log.warn("[知识库检索] 未找到归属于该用户的合法文件 ID");
+                return java.util.Collections.emptyList();
+            }
+        }
 
         EmbeddingStore<TextSegment> store = getUserStore(userId);
 
-        // 1. 将问题向量化
-        EmbeddingModel embeddingModel = buildEmbeddingModel();
+        // 1. 将问题向量化（使用用户动态配置）
+        EmbeddingModel embeddingModel = buildEmbeddingModel(config);
         Embedding questionEmbedding = embeddingModel.embed(question).content();
 
         // 2. 执行相似度检索
-        EmbeddingSearchRequest searchRequest = EmbeddingSearchRequest.builder()
-                .queryEmbedding(questionEmbedding)
-                .maxResults(k)
-                .build();
+        log.info("[知识库检索] 开始向量搜索: 问题='{}', 模型={}, 向量维度={}", 
+                 question, config.getEmbeddingModel(), questionEmbedding.dimension());
 
-        EmbeddingSearchResult<TextSegment> searchResult = store.search(searchRequest);
+        EmbeddingSearchRequest.EmbeddingSearchRequestBuilder requestBuilder = EmbeddingSearchRequest.builder()
+                .queryEmbedding(questionEmbedding)
+                .maxResults(k);
+        
+        // 如果有合法的 ID 过滤，则应用
+        // 🎯 增强：同时尝试匹配 String 和 Long 类型，兼容新旧索引数据
+        if (authorizedFileIds != null && !authorizedFileIds.isEmpty()) {
+            List<Object> filterIds = new ArrayList<>();
+            for (Long id : authorizedFileIds) {
+                filterIds.add(id);           // 兼容旧数据 (Long)
+                filterIds.add(id.toString()); // 匹配新数据 (String)
+            }
+            requestBuilder.filter(dev.langchain4j.store.embedding.filter.MetadataFilterBuilder
+                    .metadataKey("docId").isIn(filterIds));
+        }
+
+        EmbeddingSearchResult<TextSegment> searchResult = store.search(requestBuilder.build());
+
+        log.info("[知识库检索] 检索完成: 用户={}, 命中块数={}, TopK={}", userId, searchResult.matches().size(), k);
 
         // 3. 提取匹配的文本段落
+        if (!searchResult.matches().isEmpty()) {
+            for (int i = 0; i < searchResult.matches().size(); i++) {
+                EmbeddingMatch<TextSegment> match = searchResult.matches().get(i);
+                log.info("[知识库检索] 命中 #{} (Score: {}): 内容预览='{}'", 
+                         i + 1, match.score(), 
+                         match.embedded().text().substring(0, Math.min(50, match.embedded().text().length())).replace("\n", " "));
+            }
+        }
+
         return searchResult.matches().stream()
-                .map(EmbeddingMatch::embedded)
-                .map(TextSegment::text)
-                .collect(Collectors.toList());
+                .map(dev.langchain4j.store.embedding.EmbeddingMatch::embedded)
+                .map(dev.langchain4j.data.segment.TextSegment::text)
+                .collect(java.util.stream.Collectors.toList());
     }
 
     /**
@@ -188,18 +266,51 @@ public class KnowledgeService {
 
     // ==================== 私有工具方法 ====================
 
-    private EmbeddingModel buildEmbeddingModel() {
-        if (defaultApiKey == null || defaultApiKey.isBlank()) {
-            throw new IllegalArgumentException("服务器未配置 DashScope API Key: dashscope.api-key");
+    private EmbeddingModel buildEmbeddingModel(UserConfig config) {
+        String apiKey = config.getDashscopeApiKey();
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalArgumentException("您尚未配置私有 API Key。为了保障您的隐私与成本独立，MeiStudio 网页端要求“自带 Key (BYOK)”。请点击左侧‘系统设置’进行配置。");
         }
+        String modelName = config.getEmbeddingModel() != null ? config.getEmbeddingModel() : "text-embedding-v2";
+        
         return QwenEmbeddingModel.builder()
-                .apiKey(defaultApiKey)
-                .modelName("text-embedding-v4")
+                .apiKey(apiKey)
+                .modelName(modelName)
                 .build();
     }
 
     private EmbeddingStore<TextSegment> getUserStore(Long userId) {
-        return userStores.computeIfAbsent(userId, id -> new InMemoryEmbeddingStore<>());
+        return userStores.computeIfAbsent(userId, id -> {
+            try {
+                java.nio.file.Path path = java.nio.file.Paths.get(vectorStorePath, id + ".json");
+                if (java.nio.file.Files.exists(path)) {
+                    log.info("[知识库] 正在从硬盘加载用户 {} 的向量库 ({})...", id, path.toString());
+                    String json = java.nio.file.Files.readString(path, StandardCharsets.UTF_8);
+                    return InMemoryEmbeddingStore.fromJson(json);
+                }
+            } catch (Exception e) {
+                log.error("[知识库] 加载用户向量库失败, 创建新库: {}", e.getMessage());
+            }
+            return new InMemoryEmbeddingStore<>();
+        });
+    }
+
+    private void saveUserStore(Long userId) {
+        EmbeddingStore<TextSegment> store = userStores.get(userId);
+        if (store instanceof InMemoryEmbeddingStore<TextSegment> memoryStore) {
+            try {
+                java.nio.file.Path dir = java.nio.file.Paths.get(vectorStorePath);
+                if (!java.nio.file.Files.exists(dir)) {
+                    java.nio.file.Files.createDirectories(dir);
+                }
+                java.nio.file.Path path = dir.resolve(userId + ".json");
+                String json = memoryStore.serializeToJson();
+                java.nio.file.Files.writeString(path, json, StandardCharsets.UTF_8);
+                log.info("[知识库] 已将用户 {} 的向量库同步到硬盘: {}", userId, path.toString());
+            } catch (Exception e) {
+                log.error("[知识库] 同步用户向量库到硬盘失败: {}", e.getMessage());
+            }
+        }
     }
 
     /**
@@ -210,5 +321,37 @@ public class KnowledgeService {
         doc.setId(docId);
         doc.setStatus(status);
         documentMapper.updateById(doc);
+    }
+
+    /**
+     * 删除指定的文档，并同步从向量库中移除所有相关的块。
+     */
+    public void deleteDocument(Long docId) {
+        Long userId = UserContext.getUserId();
+        log.info("[知识库] 正在删除文档: docId={}, 用户={}", docId, userId);
+
+        // 🎯 增强：安全校验，确保仅能删除自己的文档
+        Document doc = documentMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Document>()
+                        .eq(Document::getId, docId)
+                        .eq(Document::getUserId, userId)
+        );
+        if (doc == null) {
+            log.warn("[安全警报] 用户 {} 尝试非法删除文档 {}", userId, docId);
+            return;
+        }
+
+        // 1. 从 MySQL 删除记录
+        documentMapper.deleteById(docId);
+
+        // 2. 从用户的内存向量库中清理
+        EmbeddingStore<TextSegment> store = getUserStore(userId);
+        if (store instanceof InMemoryEmbeddingStore<TextSegment> memoryStore) {
+            // 通过元数据过滤器删除所有匹配 docId 的片段 (String 匹配)
+            memoryStore.removeAll(dev.langchain4j.store.embedding.filter.MetadataFilterBuilder
+                    .metadataKey("docId").isEqualTo(docId.toString()));
+            saveUserStore(userId);
+            log.info("[知识库] 已从内存向量库移除文档 {} 的所有语义片段并同步硬盘", docId);
+        }
     }
 }

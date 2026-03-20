@@ -9,18 +9,22 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
-@RequiredArgsConstructor
 public class WebMvcConfig implements WebMvcConfigurer {
 
     private final AuthInterceptor authInterceptor;
     private final RateLimitInterceptor rateLimitInterceptor;
+
+    public WebMvcConfig(AuthInterceptor authInterceptor, RateLimitInterceptor rateLimitInterceptor) {
+        this.authInterceptor = authInterceptor;
+        this.rateLimitInterceptor = rateLimitInterceptor;
+    }
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         // 1. JWT 鉴权拦截器（优先执行）
         registry.addInterceptor(authInterceptor)
                 .addPathPatterns("/api/**")
-                .excludePathPatterns("/api/user/login")
+                .excludePathPatterns("/api/user/login", "/api/user/login-email", "/api/user/register", "/api/user/send-code")
                 .excludePathPatterns("/mcp/**");  // MCP 协议端点使用独立的会话管理
 
         // 2. Redis 限流拦截器（鉴权通过后执行）
