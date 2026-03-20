@@ -39,25 +39,30 @@
 }
 
 [data-theme="light"] {
-  /* Mei Style (Pink & White) */
+  /* Mei Style (Pink & White) - Optimized Contrast */
   --bg-primary: #ffffff;
   --bg-secondary: #fffafb;
   --bg-tertiary: #fdf2f8;
-  --bg-glass: rgba(0, 0, 0, 0.02);
-  --bg-glass-hover: rgba(0, 0, 0, 0.04);
-  --border-color: rgba(236, 72, 153, 0.1);
-  --border-active: rgba(236, 72, 153, 0.4);
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --text-muted: #9ca3af;
-  --accent: #ec4899;
-  --accent-light: #f472b6;
-  --accent-glow: rgba(236, 72, 153, 0.1);
-  --primary-gradient: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
-  --accent-gradient: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
-  --bento-card-bg: rgba(255, 255, 255, 0.7);
-  --overlay-bg: rgba(255, 255, 255, 0.9);
-  --header-text-grad: linear-gradient(135deg, #111827 0%, #ec4899 100%);
+  --bg-glass: rgba(255, 255, 255, 0.95); /* More opaque */
+  --bg-glass-hover: #ffffff;
+  --border-color: rgba(236, 72, 153, 0.2);
+  --border-active: rgba(236, 72, 153, 0.6);
+  --text-primary: #0f172a; /* Darker Slate */
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --accent: #db2777; /* Darker Pink for contrast */
+  --accent-light: #ec4899;
+  --accent-glow: rgba(236, 72, 153, 0.08);
+  --primary-gradient: linear-gradient(135deg, #db2777 0%, #be1259 100%);
+  --accent-gradient: linear-gradient(135deg, #db2777 0%, #ec4899 100%);
+  --bento-card-bg: #ffffff;
+  --overlay-bg: rgba(255, 255, 255, 0.98);
+  --header-text-grad: linear-gradient(135deg, #0f172a 0%, #db2777 100%);
+}
+
+body[data-theme="light"] {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -74,9 +79,12 @@ body {
 }
 
 body.premium-dark {
-  background-color: #03040a;
-  color: #e2e8f0;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  line-height: 1.5;
   overflow-x: hidden;
+  transition: background-color 0.4s ease, color 0.4s ease;
 }
 
 #particles-canvas {
@@ -88,6 +96,7 @@ body.premium-dark {
   z-index: -2;
   pointer-events: none;
   opacity: 0.8;
+  /* Add blend mode for light theme if needed, but pure clear is better */
 }
 
 #project-aura {
@@ -1073,11 +1082,19 @@ textarea.input { resize: vertical; min-height: 80px; }
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
+[data-theme="light"] .bento-card {
+  box-shadow: 0 10px 30px rgba(236, 72, 153, 0.05);
+}
+
 .bento-card:hover {
   background: var(--bg-primary);
   border-color: var(--border-active);
   transform: translateY(-5px) scale(1.02);
   box-shadow: 0 20px 40px var(--accent-glow);
+}
+
+[data-theme="light"] .bento-card:hover {
+  box-shadow: 0 20px 40px rgba(236, 72, 153, 0.15);
 }
 
 .bento-card-large { grid-area: large; min-height: 400px; }
