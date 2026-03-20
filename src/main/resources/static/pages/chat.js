@@ -1,7 +1,7 @@
 // ============================================================
 // Chat Page — AI Conversation with SSE Streaming + RAG
 // ============================================================
-import { chatStream, clearMemory, listDocuments } from '../api.js';
+import { chatStream, clearMemory, listDocuments, getUserId } from '../api.js';
 import { ICONS } from '../icons.js';
 
 let messages = [];
@@ -9,7 +9,13 @@ let isStreaming = false;
 let selectedFileIds = [];
 let selectedMcpIds = new Set();
 
-const STORAGE_KEY = 'mei_chat_messages';
+/**
+ * 获取基于用户 ID 的存储 Key，实现同浏览器多账号隔离
+ */
+function getStorageKey() {
+  const uid = getUserId();
+  return uid ? `mei_chat_messages_${uid}` : 'mei_chat_messages_guest';
+}
 
 export function renderChat() {
   return `
@@ -20,6 +26,10 @@ export function renderChat() {
             <div class="empty-state-icon">${ICONS.MESSAGE}</div>
             <div class="empty-state-text" style="font-size:18px;font-weight:600;color:var(--text-primary);margin-bottom:4px">开始对话</div>
             <div class="empty-state-text">向 AI 助手提问，支持联网搜索和知识库检索。<br>在右侧勾选文件可激活 RAG 知识库增强。</div>
+            <div style="margin-top:20px;padding:10px 15px;background:var(--bg-card);border-radius:8px;font-size:12px;color:var(--text-muted);border:1px dashed var(--border-light);max-width:400px">
+              <span style="display:block;margin-bottom:4px;color:var(--accent-light);font-weight:600">💡 存储说明</span>
+              为减轻服务器压力，对话记录仅保存在您的浏览器本地（sessionStorage）。更换浏览器或清理缓存后记录将消失。
+            </div>
           </div>
         </div>
         <div class="chat-input-area">
@@ -87,7 +97,7 @@ export function initChat() {
  * Persistence: Load from SessionStorage
  */
 function loadMessages() {
-  const stored = sessionStorage.getItem(STORAGE_KEY);
+  const stored = sessionStorage.getItem(getStorageKey());
   if (stored) {
     try { return JSON.parse(stored); } catch(e) { return []; }
   }
@@ -98,7 +108,7 @@ function loadMessages() {
  * Persistence: Save to SessionStorage
  */
 function saveMessages() {
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+  sessionStorage.setItem(getStorageKey(), JSON.stringify(messages));
 }
 
 async function loadFileList() {
@@ -291,7 +301,7 @@ async function doClearChat() {
     await clearMemory();
   } catch(e) { /* ignore */ }
   messages = [];
-  sessionStorage.removeItem(STORAGE_KEY);
+  sessionStorage.removeItem(getStorageKey());
   renderMessages();
   window.__toast?.('对话已清空', 'success');
 }
