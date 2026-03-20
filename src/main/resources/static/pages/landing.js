@@ -100,47 +100,87 @@ export function renderLanding() {
     </div>
 
     <div class="landing-section reveal">
-      <h2 class="section-title"><span style="display:inline-flex;align-items:center;vertical-align:middle;margin-right:8px">${ICONS.TERMINAL}</span> 系统架构 (点击节点查看深度细节)</h2>
+      <h2 class="section-title"><span style="display:inline-flex;align-items:center;vertical-align:middle;margin-right:8px">${ICONS.TERMINAL}</span> 深度架构解析 (滚动手感探秘)</h2>
       
-      <div class="arch-flow-container card-shine highlight-hover">
-        <svg class="arch-connectors" viewBox="0 0 900 300">
-          <path class="arch-connector-line" d="M225,80 L450,150"></path>
-          <path class="arch-connector-line" d="M675,80 L450,150"></path>
-          <path class="arch-connector-line" d="M450,210 L300,280"></path>
-          <path class="arch-connector-line" d="M450,210 L450,280"></path>
-          <path class="arch-connector-line" d="M450,210 L600,280"></path>
-        </svg>
+      <div class="scrollytelling-container">
+        <!-- Sticky Visual Side -->
+        <div class="scrolly-sticky">
+          <div class="arch-flow-container card-shine highlight-hover" id="scrolly-visual">
+            <svg class="arch-connectors" viewBox="0 0 900 300">
+              <path class="arch-connector-line" data-node="client" d="M225,80 L450,150"></path>
+              <path class="arch-connector-line" data-node="web" d="M675,80 L450,150"></path>
+              <path class="arch-connector-line" data-node="mysql" d="M450,210 L300,280"></path>
+              <path class="arch-connector-line" data-node="redis" d="M450,210 L450,280"></path>
+              <path class="arch-connector-line" data-node="mcp" d="M450,210 L600,280"></path>
+            </svg>
 
-        <div class="arch-row">
-          <div class="arch-node client ripple" onclick="window.__showTechDetail('client')">
-            <div class="arch-node-title">HarmonyOS Client</div>
-            <div class="arch-node-desc">ArkTS + UI Lifecycle</div>
-          </div>
-          <div class="arch-node client ripple" onclick="window.__showTechDetail('web')">
-            <div class="arch-node-title">Web Dashboard</div>
-            <div class="arch-node-desc">Vanilla JS + SPA</div>
+            <div class="arch-row">
+              <div class="arch-node client ripple" id="node-client">
+                <div class="arch-node-title">HarmonyOS Client</div>
+                <div class="arch-node-desc">ArkTS + UI Lifecycle</div>
+              </div>
+              <div class="arch-node client ripple" id="node-web">
+                <div class="arch-node-title">Web Dashboard</div>
+                <div class="arch-node-desc">Vanilla JS + SPA</div>
+              </div>
+            </div>
+
+            <div class="arch-row">
+              <div class="arch-node backend ripple" id="node-core">
+                <div class="arch-node-title">MeiAgent Core</div>
+                <div class="arch-node-desc">Spring Boot + LangChain4j</div>
+              </div>
+            </div>
+
+            <div class="arch-row">
+              <div class="arch-node infra ripple" id="node-mysql">
+                <div class="arch-node-title">MySQL 8.0</div>
+                <div class="arch-node-desc">Persistence</div>
+              </div>
+              <div class="arch-node infra ripple" id="node-redis">
+                <div class="arch-node-title">Redis Vector</div>
+                <div class="arch-node-desc">MeiRAG Storage</div>
+              </div>
+              <div class="arch-node infra ripple" id="node-mcp">
+                <div class="arch-node-title">External MCP</div>
+                <div class="arch-node-desc">Tool Servers</div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="arch-row">
-          <div class="arch-node backend ripple" onclick="window.__showTechDetail('core')">
-            <div class="arch-node-title">MeiAgent Core</div>
-            <div class="arch-node-desc">Spring Boot + LangChain4j</div>
+        <!-- Scrolling Content Side -->
+        <div class="scrolly-content">
+          <div class="scrolly-step" data-step="client">
+            <h3 class="step-title">HarmonyOS NEXT 终端</h3>
+            <p class="step-desc">基于 <b>ArkTS</b> 开发，深度适配 HarmonyOS 原生生命周期。集成 AppGallery Connect SDK，实现高效的文件管理与身份验证。</p>
+            <div class="step-tech-tags">
+              <span>ArkUI</span><span>Hvigor</span><span>FileIO</span>
+            </div>
           </div>
-        </div>
+          
+          <div class="scrolly-step" data-step="core">
+            <h3 class="step-title">MeiAgent 后端大脑</h3>
+            <p class="step-desc">中枢神经系统，由 Spring Boot 驱动。通过 <b>LangChain4j</b> 编排 LLM 任务，实时处理流式对话建议，支持 JSON-RPC 2.0 协议。</p>
+            <div class="step-tech-tags">
+              <span>Spring Boot 3</span><span>LangChain4j</span><span>Virtual Threads</span>
+            </div>
+          </div>
 
-        <div class="arch-row">
-          <div class="arch-node infra ripple" onclick="window.__showTechDetail('mysql')">
-            <div class="arch-node-title">MySQL 8.0</div>
-            <div class="arch-node-desc">Relational Data</div>
+          <div class="scrolly-step" data-step="redis">
+            <h3 class="step-title">MeiRAG 检索管道</h3>
+            <p class="step-desc">集成 Redis Vector 向量存储，利用 <b>HNSW</b> 算法实现毫秒级语义检索。解决大规模知识库处理下的限流与并行化难题。</p>
+            <div class="step-tech-tags">
+              <span>HNSW Index</span><span>Cosine Similarity</span><span>Jedis</span>
+            </div>
           </div>
-          <div class="arch-node infra ripple" onclick="window.__showTechDetail('redis')">
-            <div class="arch-node-title">Redis Vector</div>
-            <div class="arch-node-desc">MeiRAG Storage</div>
-          </div>
-          <div class="arch-node infra ripple" onclick="window.__showTechDetail('mcp')">
-            <div class="arch-node-title">External MCP</div>
-            <div class="arch-node-desc">Tool Servers</div>
+
+          <div class="scrolly-step" data-step="mcp">
+            <h3 class="step-title">MCP 插件生态</h3>
+            <p class="step-desc">手写 <b>Model Context Protocol</b> 传输层，支持 Server/Client 双向热插拔。赋予 Agent 联网搜索、数据库操作等动态工具能力。</p>
+            <div class="step-tech-tags">
+              <span>SSE</span><span>JSON-RPC 2.0</span><span>Adapter Pattern</span>
+            </div>
           </div>
         </div>
       </div>

@@ -238,6 +238,54 @@ function updateStatus(online) {
   if (text) text.textContent = online ? '已连接' : '未登录';
 }
 
+// ==================== Scrollytelling Logic ====================
+function setupScrollytelling() {
+  const steps = document.querySelectorAll('.scrolly-step');
+  if (steps.length === 0) return;
+
+  const options = {
+    threshold: 0.6,
+    rootMargin: "-10% 0px -20% 0px"
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const step = entry.target;
+        const nodeId = step.getAttribute('data-step');
+        
+        // Deactivate all
+        document.querySelectorAll('.scrolly-step').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.arch-node').forEach(n => n.classList.remove('active'));
+        document.querySelectorAll('.arch-connector-line').forEach(l => l.classList.remove('active'));
+
+        // Activate current
+        step.classList.add('active');
+        
+        // Node highlighting logic
+        if (nodeId === 'client') {
+          document.getElementById('node-client')?.classList.add('active');
+          document.getElementById('node-web')?.classList.add('active');
+          document.querySelectorAll('.arch-connector-line[data-node="client"]').forEach(l => l.classList.add('active'));
+          document.querySelectorAll('.arch-connector-line[data-node="web"]').forEach(l => l.classList.add('active'));
+        } else if (nodeId === 'core') {
+          document.getElementById('node-core')?.classList.add('active');
+        } else if (nodeId === 'redis') {
+          document.getElementById('node-redis')?.classList.add('active');
+          document.getElementById('node-mysql')?.classList.add('active');
+          document.querySelectorAll('.arch-connector-line[data-node="redis"]').forEach(l => l.classList.add('active'));
+          document.querySelectorAll('.arch-connector-line[data-node="mysql"]').forEach(l => l.classList.add('active'));
+        } else if (nodeId === 'mcp') {
+          document.getElementById('node-mcp')?.classList.add('active');
+          document.querySelectorAll('.arch-connector-line[data-node="mcp"]').forEach(l => l.classList.add('active'));
+        }
+      }
+    });
+  }, options);
+
+  steps.forEach(step => observer.observe(step));
+}
+
 // ==================== Scroll Reveal System ====================
 
 window.__setupScrollReveal = function() {
@@ -252,6 +300,9 @@ window.__setupScrollReveal = function() {
   document.querySelectorAll('.reveal, .reveal-stagger').forEach(el => {
     observer.observe(el);
   });
+
+  // Initialize scrollytelling
+  setupScrollytelling();
 };
 
 // ==================== App Init ====================
