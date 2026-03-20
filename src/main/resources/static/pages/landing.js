@@ -99,271 +99,218 @@ export function renderLanding() {
       </div>
     </div>
 
+    <!-- Architecture Bento Grid -->
     <div class="landing-section reveal">
-      <h2 class="section-title"><span style="display:inline-flex;align-items:center;vertical-align:middle;margin-right:8px">${ICONS.TERMINAL}</span> 深度架构解析 (滚动手感探秘)</h2>
+      <h2 class="section-title"><span style="display:inline-flex;align-items:center;vertical-align:middle;margin-right:8px">${ICONS.TERMINAL}</span> 系统全景架构 (Bento Showcase)</h2>
+      <p class="section-desc">点击磁贴开启深度技术拆解，探索从端侧 UI 到向量引擎的每一层。 </p>
       
-      <div class="scrollytelling-container">
-        <!-- Sticky Visual Side -->
-        <div class="scrolly-sticky">
-          <div class="arch-flow-container card-shine highlight-hover" id="scrolly-visual">
-            <svg class="arch-connectors" viewBox="0 0 900 300">
-              <path class="arch-connector-line" data-node="client" d="M225,80 L450,150"></path>
-              <path class="arch-connector-line" data-node="web" d="M675,80 L450,150"></path>
-              <path class="arch-connector-line" data-node="mysql" d="M450,210 L300,280"></path>
-              <path class="arch-connector-line" data-node="redis" d="M450,210 L450,280"></path>
-              <path class="arch-connector-line" data-node="mcp" d="M450,210 L600,280"></path>
-            </svg>
-
-            <div class="arch-row">
-              <div class="arch-node client ripple" id="node-client">
-                <div class="arch-node-title">HarmonyOS Client</div>
-                <div class="arch-node-desc">ArkTS + UI Lifecycle</div>
-              </div>
-              <div class="arch-node client ripple" id="node-web">
-                <div class="arch-node-title">Web Dashboard</div>
-                <div class="arch-node-desc">Vanilla JS + SPA</div>
-              </div>
-            </div>
-
-            <div class="arch-row">
-              <div class="arch-node backend ripple" id="node-core">
-                <div class="arch-node-title">MeiAgent Core</div>
-                <div class="arch-node-desc">Spring Boot + LangChain4j</div>
-              </div>
-            </div>
-
-            <div class="arch-row">
-              <div class="arch-node infra ripple" id="node-mysql">
-                <div class="arch-node-title">MySQL 8.0</div>
-                <div class="arch-node-desc">Persistence</div>
-              </div>
-              <div class="arch-node infra ripple" id="node-redis">
-                <div class="arch-node-title">Redis Vector</div>
-                <div class="arch-node-desc">MeiRAG Storage</div>
-              </div>
-              <div class="arch-node infra ripple" id="node-mcp">
-                <div class="arch-node-title">External MCP</div>
-                <div class="arch-node-desc">Tool Servers</div>
-              </div>
-            </div>
+      <div class="bento-grid">
+        <div class="bento-card bento-card-large card-shine" onclick="window.__openBento('client')">
+          <div class="bento-tag">Mobile Frontend</div>
+          <div class="bento-main">
+            <h3>HarmonyOS NEXT 终端</h3>
+            <p>基于 ArkTS 构建的原生 AI 界面，深度适配鸿蒙系统生命周期与流转特性。</p>
           </div>
+          <div class="bento-footer">
+            <span class="tech-tag">ArkTS</span><span class="tech-tag">ArkUI</span><span class="tech-tag">AppGallery SDK</span>
+          </div>
+          <div class="bento-action">深度拆解 ${ICONS.CHEVRON_RIGHT}</div>
         </div>
 
-        <!-- Scrolling Content Side -->
-        <div class="scrolly-content">
-          <div class="scrolly-step" data-step="client">
-            <h3 class="step-title">HarmonyOS NEXT 终端</h3>
-            <p class="step-desc">基于 <b>ArkTS</b> 开发，深度适配 HarmonyOS 原生生命周期。集成 AppGallery Connect SDK，实现高效的文件管理与身份验证。</p>
-            <div class="step-tech-tags">
-              <span>ArkUI</span><span>Hvigor</span><span>FileIO</span>
-            </div>
+        <div class="bento-card card-shine" onclick="window.__openBento('core')">
+          <div class="bento-tag">AI Backend</div>
+          <div class="bento-main">
+            <h3>MeiAgent 推理引擎</h3>
+            <p>基于 Spring Boot 3 & LangChain4j。构建 ReAct 智能循环，驱动复杂任务理解。</p>
           </div>
-          
-          <div class="scrolly-step" data-step="core">
-            <h3 class="step-title">MeiAgent 后端大脑</h3>
-            <p class="step-desc">中枢神经系统，由 Spring Boot 驱动。通过 <b>LangChain4j</b> 编排 LLM 任务，实时处理流式对话建议，支持 JSON-RPC 2.0 协议。</p>
-            <div class="step-tech-tags">
-              <span>Spring Boot 3</span><span>LangChain4j</span><span>Virtual Threads</span>
-            </div>
+          <div class="bento-footer">
+            <span class="tech-tag">Spring Boot 3</span><span class="tech-tag">LangChain4j</span>
           </div>
+          <div class="bento-action">${ICONS.PLUS}</div>
+        </div>
 
-          <div class="scrolly-step" data-step="redis">
-            <h3 class="step-title">MeiRAG 检索管道</h3>
-            <p class="step-desc">集成 Redis Vector 向量存储，利用 <b>HNSW</b> 算法实现毫秒级语义检索。解决大规模知识库处理下的限流与并行化难题。</p>
-            <div class="step-tech-tags">
-              <span>HNSW Index</span><span>Cosine Similarity</span><span>Jedis</span>
-            </div>
+        <div class="bento-card card-shine" onclick="window.__openBento('rag')">
+          <div class="bento-tag">Persistence / RAG</div>
+          <div class="bento-main">
+            <h3>MeiRAG 检索管道</h3>
+            <p>Redis Vector 语义存储。支持海量文档的并行向量化与毫秒级余弦检索。</p>
           </div>
+          <div class="bento-footer">
+            <span class="tech-tag">Redis Vector</span><span class="tech-tag">MySQL 8</span>
+          </div>
+          <div class="bento-action">${ICONS.PLUS}</div>
+        </div>
 
-          <div class="scrolly-step" data-step="mcp">
-            <h3 class="step-title">MCP 插件生态</h3>
-            <p class="step-desc">手写 <b>Model Context Protocol</b> 传输层，支持 Server/Client 双向热插拔。赋予 Agent 联网搜索、数据库操作等动态工具能力。</p>
-            <div class="step-tech-tags">
-              <span>SSE</span><span>JSON-RPC 2.0</span><span>Adapter Pattern</span>
-            </div>
+        <div class="bento-card bento-card-wide card-shine" onclick="window.__openBento('mcp')">
+          <div class="bento-tag">Tool Ecosystem</div>
+          <div class="bento-main">
+            <h3>MCP 插件协议层</h3>
+            <p>自研 Model Context Protocol 适配层。支持跨语言、跨平台的工具能力热插拔与实时调度。</p>
           </div>
+          <div class="bento-footer">
+            <span class="tech-tag">JSON-RPC 2.0</span><span class="tech-tag">SSE</span><span class="tech-tag">Adapter Pattern</span>
+          </div>
+          <div class="bento-action">查看协议方案 ${ICONS.CHEVRON_RIGHT}</div>
         </div>
       </div>
     </div>
 
-    <!-- Features -->
+    <!-- Core Capacities (Simplified) -->
     <div class="landing-section">
-      <h2 class="section-title reveal"><span style="display:inline-flex;align-items:center;vertical-align:middle;margin-right:8px">${ICONS.PLUS}</span> 核心能力</h2>
+      <h2 class="section-title reveal"><span style="display:inline-flex;align-items:center;vertical-align:middle;margin-right:8px">${ICONS.PLUS}</span> 核心技术特性</h2>
       <div class="feature-grid reveal-stagger">
         <div class="feature-card card-shine">
-          <div class="feature-icon">${ICONS.BRAIN}</div>
-          <div class="feature-title">MeiRAG 检索增强</div>
-          <div class="feature-desc">
-            上传 PDF/Word/TXT → Apache Tika 解析 → 语义分块 → DashScope 向量化 → 
-            余弦相似度检索 → Prompt 注入。已解决批量 API 限流、向量持久化等生产级问题。
-          </div>
-        </div>
-        <div class="feature-card card-shine">
-          <div class="feature-icon">${ICONS.PLUG}</div>
-          <div class="feature-title">MeiAgent MCP 引擎</div>
-          <div class="feature-desc">
-            从零手写 JSON-RPC 2.0 + SSE 传输层。Server 端暴露本系统的工具能力，
-            同时也作为 Client 端支持热插拔外部 MCP Server。
-          </div>
-        </div>
-        <div class="feature-card card-shine">
           <div class="feature-icon">${ICONS.CPU}</div>
-          <div class="feature-title">高性能并行处理</div>
-          <div class="feature-desc">
-            CompletableFuture 并行向量化 + 独立 @Async 线程池，
-            2.5MB 文件处理从 112s 降至 20s（5-8x 提升）。
-          </div>
-        </div>
-        <div class="feature-card card-shine">
-          <div class="feature-icon">${ICONS.TERMINAL}</div>
-          <div class="feature-title">Agent ReAct 循环</div>
-          <div class="feature-desc">
-            基于 LangChain4j AiServices 动态代理，自动编排"推理 → Function Calling → 
-            工具执行 → 再推理"循环。支持同步和 SSE 流式模式。
-          </div>
+          <div class="feature-title">虚拟线程并行处理</div>
+          <div class="feature-desc">Java 21 虚拟线程支持，在高并发向量化任务下性能提升显著。</div>
         </div>
         <div class="feature-card card-shine">
           <div class="feature-icon">${ICONS.SHIELD}</div>
           <div class="feature-title">多租户安全隔离</div>
-          <div class="feature-desc">
-            JWT 鉴权 + 自定义 @RateLimit 限流。ConcurrentHashMap 实现用户级
-            向量库/Agent 会话/MCP 连接三重隔离。Snowflake 分布式 ID。
-          </div>
+          <div class="feature-desc">基于 JWT 和分布式 ID 的严格数据物理隔离与限流保障。</div>
         </div>
         <div class="feature-card card-shine">
           <div class="feature-icon">${ICONS.GLOBE}</div>
-          <div class="feature-title">联网搜索工具</div>
-          <div class="feature-desc">
-            基于 Jsoup 深度爬取。通过 @Tool 注解自动注册到 MeiAgent，
-            大模型根据上下文自主决定调度，实时获取新鲜资讯。
-          </div>
+          <div class="feature-title">实时联网插件</div>
+          <div class="feature-desc">MeiAgent 自主调度搜素工具，突破大模型时效性瓶颈。</div>
         </div>
       </div>
     </div>
 
-    <!-- Tech Stack -->
+    <!-- Tech Stack Tags -->
     <div class="landing-section reveal">
-      <h2 class="section-title">🛠 技术栈</h2>
+      <h2 class="section-title">🛠 技术栈概览</h2>
       <div class="tech-tags reveal-stagger">
-        <span class="tech-tag">Java 17</span>
-        <span class="tech-tag">Spring Boot 3</span>
-        <span class="tech-tag">LangChain4j 0.35</span>
-        <span class="tech-tag">MyBatis-Plus</span>
-        <span class="tech-tag">MySQL 8</span>
-        <span class="tech-tag">Apache Tika</span>
-        <span class="tech-tag">DashScope API</span>
-        <span class="tech-tag">JSON-RPC 2.0</span>
-        <span class="tech-tag">SSE (Server-Sent Events)</span>
-        <span class="tech-tag">CompletableFuture</span>
-        <span class="tech-tag">JWT</span>
-        <span class="tech-tag">AOP 限流</span>
-        <span class="tech-tag">Jsoup</span>
-        <span class="tech-tag">Docker</span>
-        <span class="tech-tag">GCP VM</span>
-        <span class="tech-tag">HarmonyOS NEXT (ArkTS)</span>
+        <span class="tech-tag">Java 17</span><span class="tech-tag">Spring Boot 3</span>
+        <span class="tech-tag">LangChain4j</span><span class="tech-tag">Redis</span>
+        <span class="tech-tag">MySQL</span><span class="tech-tag">Docker</span>
+        <span class="tech-tag">ArkTS</span><span class="tech-tag">MCP Protocol</span>
       </div>
     </div>
   `;
 }
 
-// ==================== Interactive Architecture Logic ====================
+// ==================== Bento Expansion Logic ====================
 
-const TECH_DETAILS = {
+const BENTO_DETAILS = {
   client: {
-    title: "HarmonyOS NEXT 移动端实现",
-    body: `
-      <p>基于 <b>ArkTS</b> 开发，深度适配 HarmonyOS 原生生命周期与 UI 范式。</p>
-      <div class="tech-spec-grid">
-        <div class="tech-spec-item"><div class="tech-spec-label">核心框架</div><div class="tech-spec-value">ArkUI / Hvigor</div></div>
-        <div class="tech-spec-item"><div class="tech-spec-label">网络通信</div><div class="tech-spec-value">@ohos.net.http / SSE</div></div>
-        <div class="tech-spec-item"><div class="tech-spec-label">文件管理</div><div class="tech-spec-value">Picker + FileIO</div></div>
-        <div class="tech-spec-item"><div class="tech-spec-label">性能优化</div><div class="tech-spec-value">LazyForEach 列表</div></div>
-      </div>
-      <p style="margin-top:15px">集成官方 <b>AppGallery Connect</b> SDK，支持云存储与 Auth 服务对接。</p>
-    `
-  },
-  web: {
-    title: "Web 演示中心 (Dashboard)",
-    body: `
-      <p>轻量级单页应用 (SPA)，用于跨端特性演示与 API 测试。</p>
-      <div class="tech-spec-grid">
-        <div class="tech-spec-item"><div class="tech-spec-label">前端驱动</div><div class="tech-spec-value">Vanilla JS + CSS 3</div></div>
-        <div class="tech-spec-item"><div class="tech-spec-label">状态管理</div><div class="tech-spec-value">LocalStorage / URL Hash</div></div>
-        <div class="tech-spec-item"><div class="tech-spec-label">资产管理</div><div class="tech-spec-value">SVG + Canvas</div></div>
+    title: "HarmonyOS NEXT 原生端实现",
+    subtitle: "ArkTS | ArkUI | AppGallery Connect",
+    content: `
+      <div class="expansion-layout">
+        <div class="expansion-text">
+          <p>基于 HarmonyOS NEXT 的 <b>ArkTS</b> 开发，通过声明式 UI 实现流畅的交互体验。</p>
+          <ul>
+            <li><b>生命周期感知</b>：深度集成 ohos.app.ability，优化后台长连接稳定性。</li>
+            <li><b>高效通信</b>：自定义 SSE 客户端处理来自 MeiAgent 的流式令牌响应。</li>
+            <li><b>数据持久化</b>：通过 Preferences 和 KV-Store 实现本地配置与消息缓存。</li>
+          </ul>
+          <div class="expansion-code">
+            // ArkTS SSE 核心逻辑示例
+            let source = new EventSource(API_URL);
+            source.on('message', (res) => {
+              this.streamText += res.data;
+              this.scrollToBottom();
+            });
+          </div>
+        </div>
+        <div class="expansion-visual">
+          <div class="visual-placeholder">【UI 生命周期/流转逻辑图】</div>
+        </div>
       </div>
     `
   },
   core: {
-    title: "MeiAgent 后端核心 (Java)",
-    body: `
-      <p>整个系统的中枢，负责大模型编排、MCP 协议解析与 RAG 管道调度。</p>
-      <div class="tech-spec-grid">
-        <div class="tech-spec-item"><div class="tech-spec-label">微服务架构</div><div class="tech-spec-value">Spring Boot 3.3.x</div></div>
-        <div class="tech-spec-item"><div class="tech-spec-label">AI 引擎</div><div class="tech-spec-value">LangChain4j 0.35</div></div>
-        <div class="tech-spec-item"><div class="tech-spec-label">消息协议</div><div class="tech-spec-value">SSE / JSON-RPC 2.0</div></div>
-        <div class="tech-spec-item"><div class="tech-spec-label">并发模型</div><div class="tech-spec-value">Virtual Threads / CF</div></div>
+    title: "MeiAgent 推理引擎中枢",
+    subtitle: "Spring Boot 3 | LangChain4j | ReAct",
+    content: `
+      <div class="expansion-layout">
+        <div class="expansion-text">
+          <p>系统的中枢神经，负责将用户意图转化为可执行的工具调用与深度逻辑推理。</p>
+          <ul>
+            <li><b>AiServices 编排</b>：利用 LangChain4j 的声明式 AI 服务模型简化提示词工程。</li>
+            <li><b>ReAct 智能循环</b>：自动实现 “思考-行动-观测” 闭环，直到获取最终答案。</li>
+            <li><b>并行向量化</b>：CompletableFuture 驱动的扫描、切片与向量注桩并行流。</li>
+          </ul>
+        </div>
+        <div class="expansion-visual">
+          <div class="visual-placeholder">【Agent 推理状态机图】</div>
+        </div>
       </div>
     `
   },
-  mysql: {
-    title: "MySQL 业务持久层",
-    body: `
-      <p>处理用户信息、文档元数据、Agent 配置与对话历史。</p>
-      <div class="tech-spec-grid">
-        <div class="tech-spec-item"><div class="tech-spec-label">版本</div><div class="tech-spec-value">MySQL 8.0.x</div></div>
-        <div class="tech-spec-item"><div class="tech-spec-label">ORM</div><div class="tech-spec-value">MyBatis-Plus</div></div>
-        <div class="tech-spec-item"><div class="tech-spec-label">连接池</div><div class="tech-spec-value">HikariCP</div></div>
-      </div>
-    `
-  },
-  redis: {
-    title: "MeiRAG 向量存储 (Redis)",
-    body: `
-      <p>存储 1536/768 维语义向量，实现高效的 Top-K 检索。</p>
-      <div class="tech-spec-grid">
-        <div class="tech-spec-item"><div class="tech-spec-label">向量引擎</div><div class="tech-spec-value">RedisVector (Jedis)</div></div>
-        <div class="tech-spec-item"><div class="tech-spec-label">索引算法</div><div class="tech-spec-value">HNSW (Cosine)</div></div>
-        <div class="tech-spec-item"><div class="tech-spec-label">数据隔离</div><div class="tech-spec-value">User-Scoped Indexes</div></div>
+  rag: {
+    title: "MeiRAG 检索增强系统",
+    subtitle: "Redis Vector | HNSW Index | Apache Tika",
+    content: `
+      <div class="expansion-layout">
+        <div class="expansion-text">
+          <p>赋予平衡了大模型通用知识与个人/企业私有知识的“第二大脑”。</p>
+          <ul>
+            <li><b>多格式解析</b>：通过 Apache Tika 自动提取 PDF, DOCX, MD 等文档中的文本。</li>
+            <li><b>语义化切片</b>：基于字符或 Token 数落的语义重叠切片技术，确保上下文完整性。</li>
+            <li><b>高效检索引擎</b>：RedisVector (HNSW) 支持高维空间下的 Top-K 余弦相似度检索。</li>
+          </ul>
+        </div>
+        <div class="expansion-visual">
+          <div class="visual-placeholder">【RAG 检索增强链路图】</div>
+        </div>
       </div>
     `
   },
   mcp: {
-    title: "外部 MCP 扩展层",
-    body: `
-      <p>支持动态连接第三方 MCP Server（如 Brave Search, SQLite SDK），实现 Agent 工具热插拔。</p>
-      <div class="tech-spec-grid">
-        <div class="tech-spec-item"><div class="tech-spec-label">协议兼容</div><div class="tech-spec-value">MCP v0.1.0 (SSE)</div></div>
-        <div class="tech-spec-item"><div class="tech-spec-label">安全性</div><div class="tech-spec-value">Encapsulated Environment</div></div>
+    title: "MCP 插件协议解析层",
+    subtitle: "Model Context Protocol | JSON-RPC 2.0 | SSE",
+    content: `
+      <div class="expansion-layout">
+        <div class="expansion-text">
+          <p>打破 AI 孤岛，实现 Model 与外界工具（Search, Shell, DB）的标准化对话。</p>
+          <ul>
+            <li><b>自定义传输层</b>：手动实现 MCP 协议的 SSE 传输逻辑，支持热插拔外部服务。</li>
+            <li><b>安全沙箱</b>：所有外部工具调用经过 AOP 拦截器进行权限与频率评估。</li>
+            <li><b>Schema 映射</b>：将 Java 方法动态注解映射为符合 MCP 标准的 JSON Schema。</li>
+          </ul>
+        </div>
+        <div class="expansion-visual">
+          <div class="visual-placeholder">【MCP 协议握手与调用序列图】</div>
+        </div>
       </div>
     `
   }
 };
 
-window.__showTechDetail = function(id) {
-  const detail = TECH_DETAILS[id];
+window.__openBento = function(id) {
+  const detail = BENTO_DETAILS[id];
   if (!detail) return;
+
+  const overlay = document.getElementById('bento-overlay');
+  const body = document.getElementById('bento-detail-body');
   
-  const modal = document.getElementById('tech-modal');
-  const title = document.getElementById('modal-title');
-  const body = document.getElementById('modal-body');
-  
-  if (modal && title && body) {
-    title.textContent = detail.title;
-    body.innerHTML = detail.body;
-    modal.style.display = 'flex';
+  if (overlay && body) {
+    body.innerHTML = `
+      <div class="expansion-header">
+        <div class="expansion-title-group">
+          <h2>${detail.title}</h2>
+          <p>${detail.subtitle}</p>
+        </div>
+      </div>
+      <div class="expansion-body">
+        ${detail.content}
+      </div>
+    `;
+    overlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden'; // Lock background
+    setTimeout(() => overlay.classList.add('active'), 10);
   }
 };
 
-window.__closeTechModal = function() {
-  const modal = document.getElementById('tech-modal');
-  if (modal) modal.style.display = 'none';
+window.__closeBento = function() {
+  const overlay = document.getElementById('bento-overlay');
+  if (overlay) {
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+    setTimeout(() => {
+      overlay.style.display = 'none';
+    }, 400);
+  }
 };
-
-// Global click listener for modal backdrop
-if (!window.__modalInitialized) {
-  window.addEventListener('click', (e) => {
-    const modal = document.getElementById('tech-modal');
-    if (e.target === modal) window.__closeTechModal();
-  });
-  window.__modalInitialized = true;
-}
