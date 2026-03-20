@@ -15,10 +15,6 @@
   <div id="project-aura"></div>
   <div id="app">
     <!-- Sidebar -->
-    <button class="theme-toggle" onclick="window.__toggleTheme()" title="切换主题">
-      <span id="theme-icon">🌙</span>
-    </button>
-
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <div class="logo">
@@ -63,6 +59,10 @@
           <button class="btn btn-ghost btn-sm" id="logout-btn" style="display:none;padding:4px 10px;font-size:11px" onclick="window.__doLogout?.()">退出</button>
           <span class="version">v2.3.2</span>
         </div>
+        <button class="theme-toggle" onclick="window.__toggleTheme()">
+          <span id="theme-icon">🌙</span>
+          <span class="theme-toggle-label">切换主题</span>
+        </button>
       </div>
     </aside>
 
