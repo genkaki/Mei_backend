@@ -10,13 +10,10 @@ export function renderLanding() {
   const loginSection = loggedIn ? `
     <div class="hero-actions">
       <a href="#/chat" class="btn btn-primary">${ICONS.MESSAGE} 体验 AI 对话</a>
-      <a href="https://appgallery.huawei.com/app/detail?id=com.genkaki.meistudio&channelId=SHARE&source=appshare" target="_blank" class="btn btn-appgallery">
-        <span style="font-size:16px;margin-right:8px">🛒</span> 华为应用市场下载
-      </a>
       <a href="#/knowledge" class="btn btn-ghost">${ICONS.BOOK} 管理知识库</a>
     </div>
   ` : `
-    <div class="login-card">
+    <div class="login-card reveal">
       <div class="login-card-inner">
         <div class="auth-tabs">
           <button class="auth-tab active" id="tab-login" onclick="window.__switchAuthMode('login')">登录</button>
@@ -55,12 +52,6 @@ export function renderLanding() {
         <p class="login-hint">
           💡 <strong>独立空间</strong>：网页端采用邮箱认证体系，数据与鸿蒙端（设备 ID 模式）物理隔离，确保开发与演示互不干扰。
         </p>
-
-        <div style="margin-top:20px; text-align:center">
-          <a href="https://appgallery.huawei.com/app/detail?id=com.genkaki.meistudio&channelId=SHARE&source=appshare" target="_blank" class="btn btn-appgallery" style="width:100%">
-            <span style="font-size:16px;margin-right:8px">🛒</span> 华为应用市场下载 (HarmonyOS)
-          </a>
-        </div>
       </div>
     </div>
   `;
@@ -112,7 +103,7 @@ export function renderLanding() {
             <p>基于 ArkTS 构建的原生 AI 界面，深度适配鸿蒙系统生命周期与流转特性。</p>
           </div>
           <div class="bento-footer">
-            <span class="tech-tag">ArkTS</span><span class="tech-tag">ArkUI</span><span class="tech-tag">AppGallery SDK</span>
+            <span class="tech-tag">ArkTS</span><span class="tech-tag">ArkUI</span><span class="tech-tag">Native Modules</span>
           </div>
           <div class="bento-action">深度拆解 ${ICONS.CHEVRON_RIGHT}</div>
         </div>
@@ -194,85 +185,123 @@ export function renderLanding() {
 
 const BENTO_DETAILS = {
   client: {
-    title: "HarmonyOS NEXT 原生端实现",
-    subtitle: "ArkTS | ArkUI | AppGallery Connect",
+    title: "HarmonyOS NEXT 原生端核心方案",
+    subtitle: "ArkTS |声明式 UI | 系统级协同",
     content: `
       <div class="expansion-layout">
         <div class="expansion-text">
-          <p>基于 HarmonyOS NEXT 的 <b>ArkTS</b> 开发，通过声明式 UI 实现流畅的交互体验。</p>
-          <ul>
-            <li><b>生命周期感知</b>：深度集成 ohos.app.ability，优化后台长连接稳定性。</li>
-            <li><b>高效通信</b>：自定义 SSE 客户端处理来自 MeiAgent 的流式令牌响应。</li>
-            <li><b>数据持久化</b>：通过 Preferences 和 KV-Store 实现本地配置与消息缓存。</li>
-          </ul>
-          <div class="expansion-code">
-            // ArkTS SSE 核心逻辑示例
-            let source = new EventSource(API_URL);
-            source.on('message', (res) => {
-              this.streamText += res.data;
-              this.scrollToBottom();
-            });
+          <p>HarmonyOS 端侧采用 <b>ArkTS</b> 进行开发，通过声明式 UI 与 native 能力的深度融合，实现了极高的交互响应速度。</p>
+          <div class="expansion-specs">
+            <div class="spec-item">
+              <h4>UI 系统</h4>
+              <p>基于 ArkUI 框架，通过 Flex 布局与自定义组件构建了具备 MeiStudio 家族语言的精致界面。集成 <b>LazyForEach</b> 优化超长对话列表的内存占用。</p>
+            </div>
+            <div class="spec-item">
+              <h4>双端流转 (Planned)</h4>
+              <p>预留了分布式软总线接口，未来将支持手机端 AI 对话在平板、PC 间的无缝衔接与上下文实时拉取。</p>
+            </div>
+            <div class="spec-item">
+              <h4>文件安全</h4>
+              <p>通过鸿蒙系统的 <b>Security Access</b> 机制获取文档权限，确保 RAG 知识库上传过程中的隐私安全。</p>
+            </div>
           </div>
         </div>
         <div class="expansion-visual">
-          <div class="visual-placeholder">【UI 生命周期/流转逻辑图】</div>
+          <div class="code-window">
+            <div class="code-header"><span></span><span></span><span></span></div>
+            <pre><code>// ArkTS 消息流处理片段
+@Component
+struct ChatList {
+  @Link messages: Message[]
+  build() {
+    List() {
+      LazyForEach(this.messages, (item) => {
+        MessageItem({ data: item })
+      })
+    }.cachedCount(5)
+  }
+}</code></pre>
+          </div>
         </div>
       </div>
     `
   },
   core: {
-    title: "MeiAgent 推理引擎中枢",
-    subtitle: "Spring Boot 3 | LangChain4j | ReAct",
+    title: "MeiAgent 大模型编排中枢",
+    subtitle: "Spring Boot 3.3 | LangChain4j | Java 21 Virtual Threads",
     content: `
       <div class="expansion-layout">
         <div class="expansion-text">
-          <p>系统的中枢神经，负责将用户意图转化为可执行的工具调用与深度逻辑推理。</p>
-          <ul>
-            <li><b>AiServices 编排</b>：利用 LangChain4j 的声明式 AI 服务模型简化提示词工程。</li>
-            <li><b>ReAct 智能循环</b>：自动实现 “思考-行动-观测” 闭环，直到获取最终答案。</li>
-            <li><b>并行向量化</b>：CompletableFuture 驱动的扫描、切片与向量注桩并行流。</li>
-          </ul>
+          <p>MeiAgent 是整个系统的“大脑”，负责解析复杂指令并调度底层能力。</p>
+          <div class="expansion-specs">
+            <div class="spec-item">
+              <h4>ReAct 智能链路</h4>
+              <p>集成 LangChain4j 的 <b>AiServices</b>，通过动态代理将 Java 接口抽象为大模型可理解的 API。支持 "Thought → Action → Observation" 的自主逻辑闭环。</p>
+            </div>
+            <div class="spec-item">
+              <h4>高并发架构</h4>
+              <p>核心业务逻辑运行在 <b>Java 21 虚拟线程</b> 环境下，相比传统线程池，在处理大量 SSE 流式长连接时能显著降低损耗并提升吞吐量。</p>
+            </div>
+          </div>
+          <div class="expansion-code">
+            // Agent 核心定义
+            @AiService
+            public interface MeiAssistant {
+               @SystemMessage("You are a helpful HarmonyOS developer...")
+               TokenStream chat(String message);
+            }
+          </div>
         </div>
         <div class="expansion-visual">
-          <div class="visual-placeholder">【Agent 推理状态机图】</div>
+           <div class="visual-placeholder">【MeiAgent 推理拓扑图】</div>
         </div>
       </div>
     `
   },
   rag: {
-    title: "MeiRAG 检索增强系统",
-    subtitle: "Redis Vector | HNSW Index | Apache Tika",
+    title: "MeiRAG 检索增强管道",
+    subtitle: "Redis Vector | HNSW Index | CompletableFuture Parallelism",
     content: `
       <div class="expansion-layout">
         <div class="expansion-text">
-          <p>赋予平衡了大模型通用知识与个人/企业私有知识的“第二大脑”。</p>
-          <ul>
-            <li><b>多格式解析</b>：通过 Apache Tika 自动提取 PDF, DOCX, MD 等文档中的文本。</li>
-            <li><b>语义化切片</b>：基于字符或 Token 数落的语义重叠切片技术，确保上下文完整性。</li>
-            <li><b>高效检索引擎</b>：RedisVector (HNSW) 支持高维空间下的 Top-K 余弦相似度检索。</li>
-          </ul>
+          <p>解决了大模型“幻觉”问题，通过企业级私有知识库为对话提供事实支撑。</p>
+          <div class="expansion-specs">
+            <div class="spec-item">
+              <h4>向量索引选型</h4>
+              <p>利用 Redis 的 <b>RediSearch</b> 插件实现 1536 维语义向量存储。采用 <b>HNSW</b> (Hierarchical Navigable Small World) 索引算法，在大规模数据下保持高性能检索。</p>
+            </div>
+            <div class="spec-item">
+              <h4>流水线性能优化</h4>
+              <p>文档向量化过程采用了分布式 Snowflake ID 确保 ID 唯一性，并通过 <b>CompletableFuture</b> 实现“分块-入库-索引刷新”的无锁异步并发流水线。</p>
+            </div>
+          </div>
         </div>
         <div class="expansion-visual">
-          <div class="visual-placeholder">【RAG 检索增强链路图】</div>
+           <div class="visual-placeholder">【RAG 检索增强链路图】</div>
         </div>
       </div>
     `
   },
   mcp: {
-    title: "MCP 插件协议解析层",
-    subtitle: "Model Context Protocol | JSON-RPC 2.0 | SSE",
+    title: "MCP 标准插件协议层",
+    subtitle: "JSON-RPC 2.0 | SSE | 动态工具发现",
     content: `
       <div class="expansion-layout">
         <div class="expansion-text">
-          <p>打破 AI 孤岛，实现 Model 与外界工具（Search, Shell, DB）的标准化对话。</p>
-          <ul>
-            <li><b>自定义传输层</b>：手动实现 MCP 协议的 SSE 传输逻辑，支持热插拔外部服务。</li>
-            <li><b>安全沙箱</b>：所有外部工具调用经过 AOP 拦截器进行权限与频率评估。</li>
-            <li><b>Schema 映射</b>：将 Java 方法动态注解映射为符合 MCP 标准的 JSON Schema。</li>
-          </ul>
+          <p>打破后端与外部能力的壁垒。MeiStudio 完整实现了 <b>Model Context Protocol</b> 传输层规范。</p>
+          <div class="expansion-specs">
+            <div class="spec-item">
+              <h4>标准互操作性</h4>
+              <p>原生支持 JSON-RPC 2.0 协议。这意味着任何符合 MCP 标准的三方服务（如 Google Search, SQL SDK）只需一行配置即可接入 MeiStudio 供 Agent 使用。</p>
+            </div>
+            <div class="spec-item">
+              <h4>传输层实现</h4>
+              <p>采用 <b>SSE (Server-Sent Events)</b> 作为双向传输通道，实现了工具的实时自注册与动态调用路由。</p>
+            </div>
+          </div>
         </div>
         <div class="expansion-visual">
-          <div class="visual-placeholder">【MCP 协议握手与调用序列图】</div>
+           <div class="visual-placeholder">【MCP 握手调用时序图】</div>
         </div>
       </div>
     `
@@ -299,7 +328,7 @@ window.__openBento = function(id) {
       </div>
     `;
     overlay.style.display = 'flex';
-    document.body.style.overflow = 'hidden'; // Lock background
+    document.body.style.overflow = 'hidden'; 
     setTimeout(() => overlay.classList.add('active'), 10);
   }
 };

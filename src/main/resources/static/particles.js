@@ -33,7 +33,8 @@ if (canvas) {
       this.size = Math.random() * 2 + 0.5;
       this.speedX = Math.random() * 0.5 - 0.25;
       this.speedY = Math.random() * 0.5 - 0.25;
-      this.baseOpacity = Math.random() * 0.5 + 0.1;
+      this.color = '#ec4899'; // Sakura Pink
+      this.opacity = Math.random() * 0.5 + 0.2;
     }
 
     update() {
