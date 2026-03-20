@@ -3,6 +3,7 @@
 // ============================================================
 import { isLoggedIn } from '../api.js';
 import { ICONS } from '../icons.js';
+import { DIAGRAMS } from '../components/diagrams.js';
 
 export function renderLanding() {
   const loggedIn = isLoggedIn();
@@ -253,7 +254,7 @@ struct ChatList {
           </div>
         </div>
         <div class="expansion-visual">
-           <div class="visual-placeholder">【MeiAgent 推理拓扑图】</div>
+           ${DIAGRAMS.agentTopology()}
         </div>
       </div>
     `
@@ -277,7 +278,7 @@ struct ChatList {
           </div>
         </div>
         <div class="expansion-visual">
-           <div class="visual-placeholder">【RAG 检索增强链路图】</div>
+           ${DIAGRAMS.ragChain()}
         </div>
       </div>
     `
@@ -301,7 +302,7 @@ struct ChatList {
           </div>
         </div>
         <div class="expansion-visual">
-           <div class="visual-placeholder">【MCP 握手调用时序图】</div>
+           ${DIAGRAMS.mcpSequence()}
         </div>
       </div>
     `

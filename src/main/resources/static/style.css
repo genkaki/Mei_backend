@@ -110,7 +110,118 @@ body.premium-dark {
   background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(236, 72, 153, 0.05) 0%, transparent 60%);
 }
 
-/* Dynamic Background Nodes */
+/* ============================================================ */
+/* Technical Diagrams & Animations                              */
+/* ============================================================ */
+
+.diagram-container {
+  width: 100%;
+  padding: 24px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  border: 1px solid var(--border-light);
+  margin-top: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.diagram-caption {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  opacity: 0.8;
+}
+
+/* 1. Agent Topology Animations */
+.node-pulse {
+  animation: pulse-ring 2s infinite ease-out;
+  transform-origin: center;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+.flow-path {
+  animation: flow-dash 10s linear infinite;
+}
+
+@keyframes flow-dash {
+  to { stroke-dashoffset: -100; }
+}
+
+/* 2. RAG Chain Animations */
+.scan-line {
+  animation: scan-move 2s infinite alternate ease-in-out;
+}
+
+@keyframes scan-move {
+  from { transform: translateY(0); }
+  to { transform: translateY(50px); }
+}
+
+.arrow-path {
+  stroke-dasharray: 5 5;
+  animation: flow-dash 15s linear infinite;
+}
+
+/* 3. MCP Sequence Visuals */
+.seq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.seq-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--bg-main);
+  border-radius: 8px;
+  border-left: 3px solid var(--border-light);
+  opacity: 0;
+  transform: translateX(-10px);
+  animation: seq-enter 0.5s forwards ease-out;
+}
+
+.seq-item.active {
+  border-left-color: var(--accent-light);
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.05), transparent);
+}
+
+.seq-dot {
+  width: 20px;
+  height: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--text-muted);
+}
+
+.seq-item.active .seq-dot {
+  background: var(--accent-light);
+  border-color: var(--accent-light);
+  color: #fff;
+}
+
+.seq-label {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+@keyframes seq-enter {
+  to { opacity: 1; transform: translateX(0); }
+}
+
 body::before, body::after {
   content: "";
   position: fixed;
