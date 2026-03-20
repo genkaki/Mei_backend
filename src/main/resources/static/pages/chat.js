@@ -26,10 +26,6 @@ export function renderChat() {
             <div class="empty-state-icon">${ICONS.MESSAGE}</div>
             <div class="empty-state-text" style="font-size:18px;font-weight:600;color:var(--text-primary);margin-bottom:4px">开始对话</div>
             <div class="empty-state-text">向 AI 助手提问，支持联网搜索和知识库检索。<br>在右侧勾选文件可激活 RAG 知识库增强。</div>
-            <div style="margin-top:20px;padding:10px 15px;background:var(--bg-card);border-radius:8px;font-size:12px;color:var(--text-muted);border:1px dashed var(--border-light);max-width:400px">
-              <span style="display:block;margin-bottom:4px;color:var(--accent-light);font-weight:600">💡 存储说明</span>
-              为减轻服务器压力，对话记录仅保存在您的浏览器本地（sessionStorage）。更换浏览器或清理缓存后记录将消失。
-            </div>
           </div>
         </div>
         <div class="chat-input-area">
@@ -38,8 +34,13 @@ export function renderChat() {
               onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();window.__sendMessage?.()}"></textarea>
             <button class="send-btn" id="send-btn" onclick="window.__sendMessage?.()">${ICONS.SEND}</button>
           </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-            <div style="font-size:11px;color:var(--text-muted)" id="rag-status">普通对话模式</div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-top:8px;gap:12px">
+            <div style="flex:1">
+              <div style="font-size:11px;color:var(--text-muted)" id="rag-status">普通对话模式</div>
+              <div style="font-size:10px;color:var(--text-muted);margin-top:4px;opacity:0.8">
+                 💡 对话仅存于本地浏览器 (sessionStorage)，清理缓存或换设备会消失。
+              </div>
+            </div>
             <button class="btn btn-ghost btn-sm" onclick="window.__clearChat?.()">${ICONS.TRASH} 清空对话</button>
           </div>
         </div>
