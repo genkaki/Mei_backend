@@ -46,6 +46,34 @@ body {
   overflow: hidden;
 }
 
+body.premium-dark {
+  background-color: #03040a;
+  color: #e2e8f0;
+  overflow-x: hidden;
+}
+
+#particles-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -2;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+#project-aura {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(124, 58, 237, 0.08) 0%, transparent 50%);
+}
+
 /* Dynamic Background Nodes */
 body::before, body::after {
   content: "";
@@ -368,6 +396,87 @@ body::after {
 }
 
 .input::placeholder { color: var(--text-muted); }
+
+/* ==================== Dynamic Architecture Flow ==================== */
+
+.arch-flow-container {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  max-width: 900px;
+  margin: 40px auto;
+  position: relative;
+  padding: 20px;
+}
+
+.arch-row {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  gap: 20px;
+  position: relative;
+  z-index: 2;
+}
+
+.arch-node {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  padding: 16px 24px;
+  border-radius: 12px;
+  min-width: 140px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.arch-node:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+  transform: translateY(-5px) scale(1.05);
+}
+
+.arch-node-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.arch-node-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.arch-node.client { border-color: #3b82f6; }
+.arch-node.client .arch-node-title { color: #3b82f6; }
+
+.arch-node.backend { border-color: var(--accent); }
+
+.arch-node.infra { border-color: #10b981; }
+.arch-node.infra .arch-node-title { color: #10b981; }
+
+.arch-connectors {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.arch-connector-line {
+  stroke: rgba(139, 92, 246, 0.2);
+  stroke-width: 2;
+  fill: none;
+  stroke-dasharray: 8 4;
+  animation: flowLine 20s linear infinite;
+}
+
+@keyframes flowLine {
+  to { stroke-dashoffset: -100; }
+}
 
 textarea.input { resize: vertical; min-height: 80px; }
 

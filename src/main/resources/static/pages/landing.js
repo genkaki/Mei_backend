@@ -92,8 +92,52 @@ export function renderLanding() {
 
     <div class="landing-section reveal">
       <h2 class="section-title"><span style="display:inline-flex;align-items:center;vertical-align:middle;margin-right:8px">${ICONS.TERMINAL}</span> 系统架构</h2>
-      <div class="arch-diagram-img card-shine">
-        <img src="/assets/architecture.jpg" alt="MeiStudio Architecture Diagram">
+      
+      <div class="arch-flow-container card-shine">
+        <svg class="arch-connectors" viewBox="0 0 900 300">
+          <!-- Connector Lines -->
+          <path class="arch-connector-line" d="M225,80 L450,150"></path>
+          <path class="arch-connector-line" d="M675,80 L450,150"></path>
+          <path class="arch-connector-line" d="M450,210 L300,280"></path>
+          <path class="arch-connector-line" d="M450,210 L450,280"></path>
+          <path class="arch-connector-line" d="M450,210 L600,280"></path>
+        </svg>
+
+        <!-- Top Row -->
+        <div class="arch-row">
+          <div class="arch-node client">
+            <div class="arch-node-title">HarmonyOS Client</div>
+            <div class="arch-node-desc">ArkTS + UI Lifecycle</div>
+          </div>
+          <div class="arch-node client">
+            <div class="arch-node-title">Web Dashboard</div>
+            <div class="arch-node-desc">Vanilla JS + SPA</div>
+          </div>
+        </div>
+
+        <!-- Middle Row (Core) -->
+        <div class="arch-row">
+          <div class="arch-node backend">
+            <div class="arch-node-title">MeiAgent Core</div>
+            <div class="arch-node-desc">Spring Boot + LangChain4j</div>
+          </div>
+        </div>
+
+        <!-- Bottom Row (Infra) -->
+        <div class="arch-row">
+          <div class="arch-node infra">
+            <div class="arch-node-title">MySQL 8.0</div>
+            <div class="arch-node-desc">Relational Data</div>
+          </div>
+          <div class="arch-node infra">
+            <div class="arch-node-title">Redis Vector</div>
+            <div class="arch-node-desc">MeiRAG Storage</div>
+          </div>
+          <div class="arch-node infra">
+            <div class="arch-node-title">External MCP</div>
+            <div class="arch-node-desc">Tool Servers</div>
+          </div>
+        </div>
       </div>
     </div>
 
