@@ -253,10 +253,35 @@ window.__setupScrollReveal = function() {
   });
 };
 
+// ==================== Theme System ====================
+
+window.__toggleTheme = function() {
+  const isLight = document.body.getAttribute('data-theme') === 'light';
+  const newTheme = isLight ? 'dark' : 'light';
+  
+  document.body.setAttribute('data-theme', newTheme);
+  localStorage.setItem('meistudio-theme', newTheme);
+  
+  const icon = document.getElementById('theme-icon');
+  if (icon) icon.textContent = newTheme === 'light' ? '☀️' : '🌙';
+  
+  // Notify other components (like particles)
+  window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: newTheme } }));
+};
+
+function initTheme() {
+  const savedTheme = localStorage.getItem('meistudio-theme') || 'dark';
+  document.body.setAttribute('data-theme', savedTheme);
+  const icon = document.getElementById('theme-icon');
+  if (icon) icon.textContent = savedTheme === 'light' ? '☀️' : '🌙';
+}
+
 // ==================== App Init ====================
 
 async function init() {
+  initTheme();
   setupToast();
+  // ... rest of init
 
   // Try to restore session
   const restored = restoreSession();
