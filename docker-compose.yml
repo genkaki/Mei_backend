@@ -9,13 +9,13 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/meistudio_db?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&createDatabaseIfNotExist=true
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-root}
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-Meistudio_666}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
       - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
       - JWT_SECRET=${JWT_SECRET:-MeiStudioSecretKey2026SpringBootRAGProjectForResumeDemo}
       - MAIL_USERNAME=${MAIL_USERNAME:-meistudio_service@163.com}
-      - MAIL_PASSWORD=${MAIL_PASSWORD:-LG69WSehznZUdJJB}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
     depends_on:
       - mysql
       - redis
@@ -58,7 +58,7 @@ services:
     restart: always
     environment:
       - MYSQL_DATABASE=meistudio_db
-      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD:-Meistudio_666}
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
     ports:
       - "3306:3306"
     volumes:
