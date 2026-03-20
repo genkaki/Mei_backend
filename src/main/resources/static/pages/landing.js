@@ -10,6 +10,9 @@ export function renderLanding() {
   const loginSection = loggedIn ? `
     <div class="hero-actions">
       <a href="#/chat" class="btn btn-primary">${ICONS.MESSAGE} 体验 AI 对话</a>
+      <a href="https://appgallery.huawei.com/app/detail?id=com.genkaki.meistudio&channelId=SHARE&source=appshare" target="_blank" class="btn btn-appgallery">
+        <span style="font-size:16px;margin-right:8px">🛒</span> 华为应用市场下载
+      </a>
       <a href="#/knowledge" class="btn btn-ghost">${ICONS.BOOK} 管理知识库</a>
     </div>
   ` : `
@@ -52,6 +55,12 @@ export function renderLanding() {
         <p class="login-hint">
           💡 <strong>独立空间</strong>：网页端采用邮箱认证体系，数据与鸿蒙端（设备 ID 模式）物理隔离，确保开发与演示互不干扰。
         </p>
+
+        <div style="margin-top:20px; text-align:center">
+          <a href="https://appgallery.huawei.com/app/detail?id=com.genkaki.meistudio&channelId=SHARE&source=appshare" target="_blank" class="btn btn-appgallery" style="width:100%">
+            <span style="font-size:16px;margin-right:8px">🛒</span> 华为应用市场下载 (HarmonyOS)
+          </a>
+        </div>
       </div>
     </div>
   `;
@@ -91,11 +100,10 @@ export function renderLanding() {
     </div>
 
     <div class="landing-section reveal">
-      <h2 class="section-title"><span style="display:inline-flex;align-items:center;vertical-align:middle;margin-right:8px">${ICONS.TERMINAL}</span> 系统架构</h2>
+      <h2 class="section-title"><span style="display:inline-flex;align-items:center;vertical-align:middle;margin-right:8px">${ICONS.TERMINAL}</span> 系统架构 (点击节点查看深度细节)</h2>
       
-      <div class="arch-flow-container card-shine">
+      <div class="arch-flow-container card-shine highlight-hover">
         <svg class="arch-connectors" viewBox="0 0 900 300">
-          <!-- Connector Lines -->
           <path class="arch-connector-line" d="M225,80 L450,150"></path>
           <path class="arch-connector-line" d="M675,80 L450,150"></path>
           <path class="arch-connector-line" d="M450,210 L300,280"></path>
@@ -103,37 +111,34 @@ export function renderLanding() {
           <path class="arch-connector-line" d="M450,210 L600,280"></path>
         </svg>
 
-        <!-- Top Row -->
         <div class="arch-row">
-          <div class="arch-node client">
+          <div class="arch-node client ripple" onclick="window.__showTechDetail('client')">
             <div class="arch-node-title">HarmonyOS Client</div>
             <div class="arch-node-desc">ArkTS + UI Lifecycle</div>
           </div>
-          <div class="arch-node client">
+          <div class="arch-node client ripple" onclick="window.__showTechDetail('web')">
             <div class="arch-node-title">Web Dashboard</div>
             <div class="arch-node-desc">Vanilla JS + SPA</div>
           </div>
         </div>
 
-        <!-- Middle Row (Core) -->
         <div class="arch-row">
-          <div class="arch-node backend">
+          <div class="arch-node backend ripple" onclick="window.__showTechDetail('core')">
             <div class="arch-node-title">MeiAgent Core</div>
             <div class="arch-node-desc">Spring Boot + LangChain4j</div>
           </div>
         </div>
 
-        <!-- Bottom Row (Infra) -->
         <div class="arch-row">
-          <div class="arch-node infra">
+          <div class="arch-node infra ripple" onclick="window.__showTechDetail('mysql')">
             <div class="arch-node-title">MySQL 8.0</div>
             <div class="arch-node-desc">Relational Data</div>
           </div>
-          <div class="arch-node infra">
+          <div class="arch-node infra ripple" onclick="window.__showTechDetail('redis')">
             <div class="arch-node-title">Redis Vector</div>
             <div class="arch-node-desc">MeiRAG Storage</div>
           </div>
-          <div class="arch-node infra">
+          <div class="arch-node infra ripple" onclick="window.__showTechDetail('mcp')">
             <div class="arch-node-title">External MCP</div>
             <div class="arch-node-desc">Tool Servers</div>
           </div>
@@ -157,8 +162,8 @@ export function renderLanding() {
           <div class="feature-icon">${ICONS.PLUG}</div>
           <div class="feature-title">MeiAgent MCP 引擎</div>
           <div class="feature-desc">
-            从零手写 JSON-RPC 2.0 + SSE 传输层。Server 端暴露本系统工具，
-            Client 端支持热插拔外部 MCP Server。适配器模式桥接 LangChain4j。
+            从零手写 JSON-RPC 2.0 + SSE 传输层。Server 端暴露本系统的工具能力，
+            同时也作为 Client 端支持热插拔外部 MCP Server。
           </div>
         </div>
         <div class="feature-card card-shine">
@@ -174,7 +179,7 @@ export function renderLanding() {
           <div class="feature-title">Agent ReAct 循环</div>
           <div class="feature-desc">
             基于 LangChain4j AiServices 动态代理，自动编排"推理 → Function Calling → 
-            工具执行 → 再推理"循环。支持同步和 SSE 流式两种模式。
+            工具执行 → 再推理"循环。支持同步和 SSE 流式模式。
           </div>
         </div>
         <div class="feature-card card-shine">
@@ -219,4 +224,106 @@ export function renderLanding() {
       </div>
     </div>
   `;
+}
+
+// ==================== Interactive Architecture Logic ====================
+
+const TECH_DETAILS = {
+  client: {
+    title: "HarmonyOS NEXT 移动端实现",
+    body: `
+      <p>基于 <b>ArkTS</b> 开发，深度适配 HarmonyOS 原生生命周期与 UI 范式。</p>
+      <div class="tech-spec-grid">
+        <div class="tech-spec-item"><div class="tech-spec-label">核心框架</div><div class="tech-spec-value">ArkUI / Hvigor</div></div>
+        <div class="tech-spec-item"><div class="tech-spec-label">网络通信</div><div class="tech-spec-value">@ohos.net.http / SSE</div></div>
+        <div class="tech-spec-item"><div class="tech-spec-label">文件管理</div><div class="tech-spec-value">Picker + FileIO</div></div>
+        <div class="tech-spec-item"><div class="tech-spec-label">性能优化</div><div class="tech-spec-value">LazyForEach 列表</div></div>
+      </div>
+      <p style="margin-top:15px">集成官方 <b>AppGallery Connect</b> SDK，支持云存储与 Auth 服务对接。</p>
+    `
+  },
+  web: {
+    title: "Web 演示中心 (Dashboard)",
+    body: `
+      <p>轻量级单页应用 (SPA)，用于跨端特性演示与 API 测试。</p>
+      <div class="tech-spec-grid">
+        <div class="tech-spec-item"><div class="tech-spec-label">前端驱动</div><div class="tech-spec-value">Vanilla JS + CSS 3</div></div>
+        <div class="tech-spec-item"><div class="tech-spec-label">状态管理</div><div class="tech-spec-value">LocalStorage / URL Hash</div></div>
+        <div class="tech-spec-item"><div class="tech-spec-label">资产管理</div><div class="tech-spec-value">SVG + Canvas</div></div>
+      </div>
+    `
+  },
+  core: {
+    title: "MeiAgent 后端核心 (Java)",
+    body: `
+      <p>整个系统的中枢，负责大模型编排、MCP 协议解析与 RAG 管道调度。</p>
+      <div class="tech-spec-grid">
+        <div class="tech-spec-item"><div class="tech-spec-label">微服务架构</div><div class="tech-spec-value">Spring Boot 3.3.x</div></div>
+        <div class="tech-spec-item"><div class="tech-spec-label">AI 引擎</div><div class="tech-spec-value">LangChain4j 0.35</div></div>
+        <div class="tech-spec-item"><div class="tech-spec-label">消息协议</div><div class="tech-spec-value">SSE / JSON-RPC 2.0</div></div>
+        <div class="tech-spec-item"><div class="tech-spec-label">并发模型</div><div class="tech-spec-value">Virtual Threads / CF</div></div>
+      </div>
+    `
+  },
+  mysql: {
+    title: "MySQL 业务持久层",
+    body: `
+      <p>处理用户信息、文档元数据、Agent 配置与对话历史。</p>
+      <div class="tech-spec-grid">
+        <div class="tech-spec-item"><div class="tech-spec-label">版本</div><div class="tech-spec-value">MySQL 8.0.x</div></div>
+        <div class="tech-spec-item"><div class="tech-spec-label">ORM</div><div class="tech-spec-value">MyBatis-Plus</div></div>
+        <div class="tech-spec-item"><div class="tech-spec-label">连接池</div><div class="tech-spec-value">HikariCP</div></div>
+      </div>
+    `
+  },
+  redis: {
+    title: "MeiRAG 向量存储 (Redis)",
+    body: `
+      <p>存储 1536/768 维语义向量，实现高效的 Top-K 检索。</p>
+      <div class="tech-spec-grid">
+        <div class="tech-spec-item"><div class="tech-spec-label">向量引擎</div><div class="tech-spec-value">RedisVector (Jedis)</div></div>
+        <div class="tech-spec-item"><div class="tech-spec-label">索引算法</div><div class="tech-spec-value">HNSW (Cosine)</div></div>
+        <div class="tech-spec-item"><div class="tech-spec-label">数据隔离</div><div class="tech-spec-value">User-Scoped Indexes</div></div>
+      </div>
+    `
+  },
+  mcp: {
+    title: "外部 MCP 扩展层",
+    body: `
+      <p>支持动态连接第三方 MCP Server（如 Brave Search, SQLite SDK），实现 Agent 工具热插拔。</p>
+      <div class="tech-spec-grid">
+        <div class="tech-spec-item"><div class="tech-spec-label">协议兼容</div><div class="tech-spec-value">MCP v0.1.0 (SSE)</div></div>
+        <div class="tech-spec-item"><div class="tech-spec-label">安全性</div><div class="tech-spec-value">Encapsulated Environment</div></div>
+      </div>
+    `
+  }
+};
+
+window.__showTechDetail = function(id) {
+  const detail = TECH_DETAILS[id];
+  if (!detail) return;
+  
+  const modal = document.getElementById('tech-modal');
+  const title = document.getElementById('modal-title');
+  const body = document.getElementById('modal-body');
+  
+  if (modal && title && body) {
+    title.textContent = detail.title;
+    body.innerHTML = detail.body;
+    modal.style.display = 'flex';
+  }
+};
+
+window.__closeTechModal = function() {
+  const modal = document.getElementById('tech-modal');
+  if (modal) modal.style.display = 'none';
+};
+
+// Global click listener for modal backdrop
+if (!window.__modalInitialized) {
+  window.addEventListener('click', (e) => {
+    const modal = document.getElementById('tech-modal');
+    if (e.target === modal) window.__closeTechModal();
+  });
+  window.__modalInitialized = true;
 }
