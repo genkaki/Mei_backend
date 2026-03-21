@@ -258,13 +258,12 @@ public class McpClientManager {
         // 判定准则：插件 (MCP) 必须遵循 strict BYOK 原则。
         // 如果数据库里的 Key 是空的，或者是特定的测试占位符，不论是网页端还是鸿蒙端，统统不进行回退。
         // 这确保了插件资源的成本由用户自行承担。
-        String placeholder = "sk-2acf9ded37094e5f82dee3466625a1b1";
+        String placeholder = "sk-6666666666666666666666666";
         if (finalApiKey == null || finalApiKey.isBlank() || finalApiKey.equals(placeholder)) {
-            log.warn("[McpClientManager] 插件密钥缺失或为有效占位符 (isPlaceholder={})", finalApiKey != null && finalApiKey.equals(placeholder));
+            log.warn("[McpClientManager] 插件密钥缺失或为占位符 (isPlaceholder={})", finalApiKey != null && finalApiKey.equals(placeholder));
             finalApiKey = null;
-        } else if (finalApiKey.length() > 8) {
-            log.info("[McpClientManager] 识别到私人密钥: {}...{}", 
-                    finalApiKey.substring(0, 4), finalApiKey.substring(finalApiKey.length() - 4));
+        } else {
+            log.info("[McpClientManager] 使用实时输入的私有密钥 (Len={})", finalApiKey.length());
         }
 
         // 2. 如果有密钥，设置为 Authorization Header
