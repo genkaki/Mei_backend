@@ -264,8 +264,11 @@ public class McpClientManager {
         // 这确保了插件资源的成本由用户自行承担。
         String placeholder = "sk-2acf9ded37094e5f82dee3466625a1b1";
         if (finalApiKey == null || finalApiKey.isBlank() || finalApiKey.equals(placeholder)) {
-            log.warn("[McpClientManager] 检测到插件密钥缺失或为无效占位符，根据安全政策，插件调用将尝试直接发起（通常会导致 401）");
-            finalApiKey = null; // 设置为 null，防止发送带有占位符的请求
+            log.warn("[McpClientManager] 插件密钥缺失或为有效占位符 (isPlaceholder={})", finalApiKey != null && finalApiKey.equals(placeholder));
+            finalApiKey = null;
+        } else if (finalApiKey.length() > 8) {
+            log.info("[McpClientManager] 识别到私人密钥: {}...{}", 
+                    finalApiKey.substring(0, 4), finalApiKey.substring(finalApiKey.length() - 4));
         }
 
         // 2. 如果有密钥，设置为 Authorization Header
