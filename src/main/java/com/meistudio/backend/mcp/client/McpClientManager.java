@@ -272,14 +272,31 @@ public class McpClientManager {
             headerMap.put("Authorization", "Bearer " + finalApiKey);
         }
 
-        // 3. 如果有自定义 headers JSON，覆盖到 map 中
+        // 3. 如果有自定义 headers JSON，解析并进行环境变量替换
         if (headersJson != null && !headersJson.isBlank()) {
             try {
-                Map<String, String> parsed = objectMapper.readValue(headersJson, new TypeReference<>() {});
+                String processedJson = headersJson;
+                if (finalApiKey != null) {
+                    // 🎯 核心逻辑：自动替换官方文档模板中的占位符
+                    processedJson = processedJson.replace("${DASHSCOPE_API_KEY}", finalApiKey)
+                                                .replace("$DASHSCOPE_API_KEY", finalApiKey);
+                }
+                
+                Map<String, String> parsed = objectMapper.readValue(processedJson, new TypeReference<>() {});
                 headerMap.putAll(parsed);
             } catch (Exception e) {
                 log.warn("[McpClientManager] 解析自定义 Headers 失败: {}", e.getMessage());
             }
+        }
+
+        // 4. 如果没有显式的 Authorization/api-key，且有私人密钥，进行补充
+        if (finalApiKey != null && !finalApiKey.isBlank()) {
+             if (!headerMap.containsKey("Authorization")) {
+                 headerMap.put("Authorization", "Bearer " + finalApiKey);
+             }
+             if (!headerMap.containsKey("api-key")) {
+                 headerMap.put("api-key", finalApiKey);
+             }
         }
 
         return headerMap;
