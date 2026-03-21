@@ -238,13 +238,9 @@ public class McpClientManager {
 
         // 执行握手和工具列表查询
         McpServerConnection connection = new McpServerConnection(server.getName(), server.getUrl(), headerMap);
-        connection.connect();
-
-        if (connection.isConnected()) {
-            return connection.getDiscoveredTools();
-        } else {
-            throw new RuntimeException("测试失败：无法连接到插件端点。请检查 URL 和 API Key 是否正确，或网络是否通畅。");
-        }
+        connection.connect(); // 如果失败会直接抛出包含详细错误信息的 RuntimeException
+        
+        return connection.getDiscoveredTools();
     }
 
     // ==================== 内部方法 ====================

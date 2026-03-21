@@ -90,9 +90,10 @@ public class McpServerConnection {
             return discoveredTools.size();
 
         } catch (Exception e) {
-            log.error("[McpClient] 连接失败: name={}, url={}, error={}", serverName, serverUrl, e.getMessage());
+            log.error("[McpClient] 连接失败: name={}, url={}, error={}", 
+                    serverName, serverUrl, e.getMessage());
             this.connected = false;
-            return 0;
+            throw e; // 🎯 核心修复：向上抛出异常，让后端 controller 和前端能看到具体报错（如 401, 500 等）
         }
     }
 
