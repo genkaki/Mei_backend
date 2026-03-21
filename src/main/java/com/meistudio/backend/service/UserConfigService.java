@@ -31,10 +31,14 @@ public class UserConfigService {
         this.userMapper = userMapper;
     }
 
-    public UserConfig getUserConfig(Long userId) {
-        // 1. 获取用户信息以判断来源 (Web 用户需强制 BYOK)
+    public boolean isWebUser(Long userId) {
         com.meistudio.backend.entity.User user = userMapper.selectById(userId);
-        boolean isWebUser = user != null && user.getEmail() != null && !user.getEmail().isBlank();
+        return user != null && user.getEmail() != null && !user.getEmail().isBlank();
+    }
+
+    public UserConfig getUserConfig(Long userId) {
+        // 1. 获取用户信息以判断来源
+        boolean isWebUser = isWebUser(userId);
 
         UserConfig config = userConfigMapper.selectOne(
                 new LambdaQueryWrapper<UserConfig>().eq(UserConfig::getUserId, userId)
@@ -43,19 +47,18 @@ public class UserConfigService {
         if (config == null) {
             config = new UserConfig();
             config.setUserId(userId);
-            // Web 用户不提供系统默认 Key 兜底
-            config.setDashscopeApiKey(isWebUser ? null : defaultApiKey);
+            // 核心逻辑改动：UserConfig 对象不再提供系统 key 兜底。
+            // 这样依赖 UserConfig 的对话 (Chat) 和 插件 (MCP) 就会强制走 BYOK 路径。
+            config.setDashscopeApiKey(null);
             config.setEmbeddingModel("text-embedding-v2");
             config.setChatModel("qwen-turbo");
             config.setChunkSize(defaultChunkSize);
             config.setChunkOverlap(defaultChunkOverlap);
             config.setTopK(5);
         } else {
-            // 如果 Web 用户没有设置私有 Key，则保持为空，不使用默认 Key
-            if (isWebUser) {
-                // 不做任何操作，保持原样（即使用户设置了空字符串也视为无效）
-            } else if (config.getDashscopeApiKey() == null || config.getDashscopeApiKey().isBlank()) {
-                config.setDashscopeApiKey(defaultApiKey);
+            // 即使数据库里有记录，如果是空字符串也强制转为 null，确保上层判定一致
+            if (config.getDashscopeApiKey() != null && config.getDashscopeApiKey().isBlank()) {
+                config.setDashscopeApiKey(null);
             }
         }
         return config;

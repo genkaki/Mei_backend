@@ -141,8 +141,9 @@ public class KnowledgeService {
 
             log.info("[异步向量化] 文档 '{}' 切分为 {} 个语义块, 用户={}", fileName, cleanSegments.size(), userId);
 
-            // 3. 构建向量模型（使用用户配置的 API Key）
-            EmbeddingModel embeddingModel = buildEmbeddingModel(config);
+            // 3. 构建向量模型
+            // 策略：鸿蒙端使用系统环境 Key，网页端强制使用个人私有 Key (BYOK)
+            EmbeddingModel embeddingModel = buildEmbeddingModel(userId, config);
 
             // 3. 分批并行向量化
             int batchSize = 10; 
@@ -211,7 +212,7 @@ public class KnowledgeService {
         EmbeddingStore<TextSegment> store = getUserStore(userId);
 
         // 1. 将问题向量化（使用用户动态配置）
-        EmbeddingModel embeddingModel = buildEmbeddingModel(config);
+        EmbeddingModel embeddingModel = buildEmbeddingModel(userId, config);
         Embedding questionEmbedding = embeddingModel.embed(question).content();
 
         // 2. 执行相似度检索
@@ -268,15 +269,29 @@ public class KnowledgeService {
 
     // ==================== 私有工具方法 ====================
 
-    private EmbeddingModel buildEmbeddingModel(UserConfig config) {
-        String apiKey = config.getDashscopeApiKey();
-        if (apiKey == null || apiKey.isBlank()) {
-            throw new IllegalArgumentException("您尚未配置私有 API Key。为了保障您的隐私与成本独立，MeiStudio 网页端要求“自带 Key (BYOK)”。请点击左侧‘系统设置’进行配置。");
+    private EmbeddingModel buildEmbeddingModel(Long userId, UserConfig config) {
+        boolean isWebUser = userConfigService.isWebUser(userId);
+        String finalApiKey;
+
+        if (isWebUser) {
+            // 网页端：严格遵循 BYOK 政策
+            finalApiKey = config.getDashscopeApiKey();
+            if (finalApiKey == null || finalApiKey.isBlank()) {
+                throw new IllegalArgumentException("您的账号（网页端）尚未配置私有 API Key。为了保障您的隐私与成本独立，MeiStudio 网页端要求“自带 Key (BYOK)”。请前往系统的‘设置’界面进行配置。");
+            }
+        } else {
+            // 鸿蒙端：固定使用服务器环境 Key，暂不支持私有 Key (按用户需求强制分流)
+            finalApiKey = defaultApiKey;
+            if (finalApiKey == null || finalApiKey.isBlank()) {
+                log.error("[知识库] 服务器未配置 DASHSCOPE_API_KEY，鸿蒙端向量化由于缺乏 Key 将无法运行");
+                throw new RuntimeException("服务器环境配置异常，请联系管理员配置 API Key");
+            }
         }
+
         String modelName = config.getEmbeddingModel() != null ? config.getEmbeddingModel() : "text-embedding-v2";
         
         return QwenEmbeddingModel.builder()
-                .apiKey(apiKey)
+                .apiKey(finalApiKey)
                 .modelName(modelName)
                 .build();
     }
