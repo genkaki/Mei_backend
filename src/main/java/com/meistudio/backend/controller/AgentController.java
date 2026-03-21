@@ -90,7 +90,9 @@ public class AgentController {
                             emitter.completeWithError(e);
                         }
                     })
-                    .onComplete(response -> {
+                    .onResponse(response -> {
+                        log.info("[Agent] 对话流结束。最终生成长度: {}", 
+                                (response.content() != null && response.content().text() != null) ? response.content().text().length() : 0);
                         try {
                             emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event()
                                     .name("complete")
