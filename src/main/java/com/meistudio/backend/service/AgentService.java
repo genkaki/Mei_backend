@@ -60,6 +60,13 @@ public class AgentService {
     @Value("${dashscope.api-key:}")
     private String apiKey;
 
+    /**
+     * 获取系统全局配置的 DashScope API Key（从环境变量或配置文件读取）。
+     */
+    public String getSystemDefaultApiKey() {
+        return this.apiKey;
+    }
+
     @Value("${agent.model-name:qwen-plus}")
     private String modelName;
 

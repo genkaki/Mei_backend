@@ -230,12 +230,24 @@ public class McpClientManager {
     private Map<String, String> buildHeaderMap(String headersJson, String apiKey) {
         Map<String, String> headerMap = new HashMap<>();
 
-        // 1. 如果有 apiKey，先设置为默认 Authorization
-        if (apiKey != null && !apiKey.isBlank()) {
-            headerMap.put("Authorization", "Bearer " + apiKey);
+        // 1. 确定最终使用的 API Key
+        String finalApiKey = apiKey;
+        // 如果数据库里的 Key 是空的，或者是那个已知的旧占位符，则尝试使用系统全局 Key
+        String placeholder = "sk-2acf9ded37094e5f82dee3466625a1b1";
+        if (finalApiKey == null || finalApiKey.isBlank() || finalApiKey.equals(placeholder)) {
+            // 从 AgentService 获取系统默认 Key（它会读取 DASHSCOPE_API_KEY 环境变量）
+            finalApiKey = agentService.getSystemDefaultApiKey();
+            if (finalApiKey != null && !finalApiKey.isBlank()) {
+                log.info("[McpClientManager] 检测到插件密钥为空或为占位符，已自动回退到系统全局密钥");
+            }
         }
 
-        // 2. 如果有自定义 headers JSON，覆盖到 map 中
+        // 2. 如果最终有 apiKey，设置为默认 Authorization
+        if (finalApiKey != null && !finalApiKey.isBlank()) {
+            headerMap.put("Authorization", "Bearer " + finalApiKey);
+        }
+
+        // 3. 如果有自定义 headers JSON，覆盖到 map 中
         if (headersJson != null && !headersJson.isBlank()) {
             try {
                 Map<String, String> parsed = objectMapper.readValue(headersJson, new TypeReference<>() {});
