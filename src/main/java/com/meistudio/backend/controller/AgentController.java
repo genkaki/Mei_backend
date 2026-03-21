@@ -76,28 +76,51 @@ public class AgentController {
             return emitter;
         }
 
-        agentService.chatStream(userId, message, config)
-                .onNext(token -> {
-                    try {
-                        emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event()
-                                .name("message")
-                                .data(token));
-                    } catch (Exception e) {
+        try {
+            agentService.chatStream(userId, message, config)
+                    .onNext(token -> {
+                        try {
+                            emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event()
+                                    .name("message")
+                                    .data(token));
+                        } catch (Exception e) {
+                            log.error("[Agent] SSE 发送 token 失败: {}", e.getMessage());
+                            emitter.completeWithError(e);
+                        }
+                    })
+                    .onComplete(response -> {
+                        try {
+                            emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event()
+                                    .name("complete")
+                                    .data("done"));
+                            emitter.complete();
+                        } catch (Exception e) {
+                            emitter.completeWithError(e);
+                        }
+                    })
+                    .onError(e -> {
+                        log.error("[Agent] 流式对话过程中发生错误: {}", e.getMessage());
+                        try {
+                            emitter.send(org.springframework.http.servlet.mvc.method.annotation.SseEmitter.event()
+                                    .name("error")
+                                    .data(e.getMessage()));
+                        } catch (Exception ex) {
+                            // ignore
+                        }
                         emitter.completeWithError(e);
-                    }
-                })
-                .onComplete(response -> {
-                    try {
-                        emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event()
-                                .name("complete")
-                                .data("done"));
-                        emitter.complete();
-                    } catch (Exception e) {
-                        emitter.completeWithError(e);
-                    }
-                })
-                .onError(emitter::completeWithError)
-                .start();
+                    })
+                    .start();
+        } catch (Exception e) {
+            log.error("[Agent] 流式对话初始化失败: {}", e.getMessage());
+            try {
+                emitter.send(org.springframework.http.servlet.mvc.method.annotation.SseEmitter.event()
+                        .name("error")
+                        .data(e.getMessage()));
+            } catch (Exception ex) {
+                // ignore
+            }
+            emitter.complete();
+        }
 
         return emitter;
     }
