@@ -5,6 +5,7 @@ import com.meistudio.backend.common.Result;
 import com.meistudio.backend.common.UserContext;
 import com.meistudio.backend.service.AgentService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,6 +23,7 @@ import java.util.Map;
  * - 接口限流：@RateLimit 注解限制单用户每分钟请求次数，防止恶意刷量消耗大模型 Token
  * - 审计日志：由 LogAspect 自动记录每次请求的参数、耗时和结果
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/agent")
 public class AgentController {
@@ -101,7 +103,7 @@ public class AgentController {
                     .onError(e -> {
                         log.error("[Agent] 流式对话过程中发生错误: {}", e.getMessage());
                         try {
-                            emitter.send(org.springframework.http.servlet.mvc.method.annotation.SseEmitter.event()
+                            emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event()
                                     .name("error")
                                     .data(e.getMessage()));
                         } catch (Exception ex) {
@@ -113,7 +115,7 @@ public class AgentController {
         } catch (Exception e) {
             log.error("[Agent] 流式对话初始化失败: {}", e.getMessage());
             try {
-                emitter.send(org.springframework.http.servlet.mvc.method.annotation.SseEmitter.event()
+                emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event()
                         .name("error")
                         .data(e.getMessage()));
             } catch (Exception ex) {
