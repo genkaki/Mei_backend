@@ -65,7 +65,13 @@ public class AgentController {
      * Agent 流式对话接口 (SSE)。
      */
     @PostMapping(value = "/chat-stream", produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
-    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter chatStream(@RequestBody Map<String, Object> body) {
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter chatStream(
+            @RequestBody Map<String, Object> body,
+            javax.servlet.http.HttpServletResponse response) {
+        
+        // 🎯 核心优化：告知 Nginx 此时不要进行响应缓冲，确保 SSE 各个分块能立即到达客户端
+        response.setHeader("X-Accel-Buffering", "no");
+
         String message = (String) body.get("message");
         AgentService.AgentConfig config = parseConfig(body);
         Long userId = UserContext.getUserId();
@@ -76,6 +82,15 @@ public class AgentController {
         if (message == null || message.isBlank()) {
             emitter.completeWithError(new IllegalArgumentException("消息内容不能为空"));
             return emitter;
+        }
+
+        // 🎯 关键修复：立即发送一个初始事件，防止前端或 Nginx 因为长时间无数据而断开连接 (30s 策略)
+        try {
+            emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event()
+                    .name("processing")
+                    .data("正在准备 AI 响应..."));
+        } catch (Exception e) {
+            log.warn("[Agent] 发送初始事件失败: {}", e.getMessage());
         }
 
         try {
