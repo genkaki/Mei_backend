@@ -137,16 +137,21 @@ public class McpServerConnection {
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
                 .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MeiStudio/1.2.0")
-                .header("X-DashScope-WorkSpace", "default");
-
         String apiKey = extractApiKeyFromHeaders();
         if (apiKey != null && !apiKey.isEmpty()) {
             builder.header("Authorization", "Bearer " + apiKey);
+            builder.header("api-key", apiKey); // 🎯 兼容性增强：百炼平台部分 API 偏好 api-key header
+            
+            log.info("[McpClient] 为请求添加鉴权头 (Key={}...{})", 
+                    apiKey.substring(0, 4), apiKey.substring(apiKey.length() - 4));
         }
 
         for (Map.Entry<String, String> entry : customHeaders.entrySet()) {
-            if (entry.getValue() != null && !entry.getValue().isEmpty() && !entry.getKey().equalsIgnoreCase("Authorization")) {
-                builder.header(entry.getKey(), entry.getValue());
+            String key = entry.getKey();
+            if (entry.getValue() != null && !entry.getValue().isEmpty() 
+                && !key.equalsIgnoreCase("Authorization") 
+                && !key.equalsIgnoreCase("api-key")) {
+                builder.header(key, entry.getValue());
             }
         }
 
