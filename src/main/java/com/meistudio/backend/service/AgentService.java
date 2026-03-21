@@ -103,9 +103,10 @@ public class AgentService {
                 
                 行为准则：
                 1. 面对任何需要查询、画图、代码或外部信息的任务，你【必须】开启对应插件。
-                2. 严禁在调用前废话。调用后，请基于插件结果，进行详细、清晰且准确的中文解答。
-                3. 若正在处理复杂逻辑或检索，欢迎在首行说明“正在为您处理，请稍候...”。
-                4. 当前日期：{{current_date}}，驱动：{{model_name}}。
+                2. 对于【绘图/画图/生图】请求，你必须调用 `modelstudio_z_image_generation` 或类似的绘图工具，严禁仅凭文字描述。
+                3. 对于【联网搜索】请求，请在回答首行明确说明“正在为您联网搜索...”。
+                4. 严禁在调用工具前废话。调用后，请基于工具返回的结果进行解答。
+                5. 当前日期：{{current_date}}，驱动：{{model_name}}。
                 """)
         String chat(@V("current_date") String currentDate, @V("model_name") String modelName, @UserMessage String userMessage);
     }
@@ -119,9 +120,10 @@ public class AgentService {
                 
                 行为准则：
                 1. 面对任何需要查询、画图、代码或外部信息的任务，你【必须】开启对应插件。
-                2. 严禁在调用前废话。调用后，请基于插件结果，进行详细、清晰且准确的中文解答。
-                3. 若正在处理复杂逻辑或检索，【务必】先输出一段引导性文字（如：好的，正在为您查找相关背景信息...）。
-                4. 当前日期：{{current_date}}，驱动：{{model_name}}。
+                2. 对于【绘图/画图/生图】请求，你必须调用 `modelstudio_z_image_generation` 或类似的绘图工具，严禁仅使用文字描述。
+                3. 对于【联网搜索】请求，请在回答首行明确说明“正在为您联网搜索...”。
+                4. 请基于插件返回的实际结果（如图片的 URL）进行展示和准确解答。
+                5. 当前日期：{{current_date}}，驱动：{{model_name}}。
                 """)
         TokenStream chat(@V("current_date") String currentDate, @V("model_name") String modelName, @UserMessage String userMessage);
     }
@@ -267,7 +269,7 @@ public class AgentService {
                 mcpToolMap.put(mcpSpecs.get(i), mcpExecutors.get(i));
             }
             builder.tools(mcpToolMap);
-            log.info("[Agent] 已为用户 {} 准备 {} 个流式 MCP 工具规格", userId, mcpSpecs.size());
+            log.info("[Agent] 已为用户 {} 准备 {} 个流式 MCP 工具规格: {}", userId, mcpSpecs.size(), mcpSpecs);
         }
 
         return builder.build();
