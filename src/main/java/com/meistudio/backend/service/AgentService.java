@@ -83,7 +83,12 @@ public class AgentService {
      * Key: userId, Value: 该用户的 Agent 代理实例。
      * 每个用户的 Agent 实例内部持有独立的 ChatMemory，保证多租户对话上下文隔离。
      */
-    private final Map<Long, SearchAgent> userAgents = new ConcurrentHashMap<>();
+     private final Map<Long, SearchAgent> userAgents = new ConcurrentHashMap<>();
+
+    /**
+     * 流式 Agent 缓存。
+     */
+    private final Map<Long, StreamingSearchAgent> streamingUserAgents = new ConcurrentHashMap<>();
 
     /**
      * Agent 对话接口定义。
@@ -116,13 +121,15 @@ public class AgentService {
      */
     public interface StreamingSearchAgent {
         @SystemMessage("""
-                你是 MeiStudio 智能助手。你拥有联网搜索和 MCP 插件扩展能力。
+                你是 MeiStudio 智能助手。
                 
-                行为准则：
-                1. 面对任何需要查询、画图、代码或外部信息的任务，你【必须】开启对应插件。
-                2. 对于【绘图/画图/生图】请求，你必须调用 `modelstudio_z_image_generation` 或类似的绘图工具，严禁仅使用文字描述。
-                3. 对于【联网搜索】请求，请在回答首行明确说明“正在为您联网搜索...”。
-                4. 请基于插件返回的实际结果（如图片的 URL）进行展示和准确解答。
+                【核心指令 - 优先级最高】
+                1. 只要用户提到“画”、“绘”、“图片”、“生成图”，你【必须且只能】调用 `modelstudio_z_image_generation` 工具。
+                2. 严禁进行任何文字描述、开场白（如“好的”、“没问题”）、结束语或解释，只需输出工具调用。
+                
+                【其他规则】
+                3. 对于需要查询外部信息的任务，调用联网搜索插件。
+                4. 联网搜索时，首行说明“正在为您联网搜索...”。
                 5. 当前日期：{{current_date}}，驱动：{{model_name}}。
                 """)
         TokenStream chat(@V("current_date") String currentDate, @V("model_name") String modelName, @UserMessage String userMessage);
@@ -181,7 +188,7 @@ public class AgentService {
         
         String enrichedMessage = enrichMessageWithRAG(userMessage, config.getFileIds());
         UserConfig userConfig = userConfigService.getUserConfig(userId);
-        StreamingSearchAgent agent = createStreamingAgent(userId, config, userConfig);
+        StreamingSearchAgent agent = streamingUserAgents.computeIfAbsent(userId, id -> createStreamingAgent(id, config, userConfig));
         String effectiveModelName = (config.getModelName() != null && !config.getModelName().isEmpty()) ? config.getModelName() : userConfig.getChatModel();
         
         return agent.chat(LocalDate.now().toString(), effectiveModelName, enrichedMessage);
@@ -192,6 +199,7 @@ public class AgentService {
      */
     public void clearMemory(Long userId) {
         userAgents.remove(userId);
+        streamingUserAgents.remove(userId);
         log.info("[Agent] 已清除用户会话记忆: userId={}", userId);
     }
 
@@ -292,6 +300,8 @@ public class AgentService {
                 .modelName(effectiveModelName)
                 .baseUrl(effectiveBaseUrl)
                 .temperature(config.getTemperature())
+                .logRequests(true)
+                .logResponses(true)
                 .build();
     }
 
@@ -307,11 +317,19 @@ public class AgentService {
         String effectiveBaseUrl = (config.getBaseUrl() != null && !config.getBaseUrl().isEmpty() && !config.getBaseUrl().equals("managed-by-backend")) 
                 ? config.getBaseUrl() : "https://dashscope.aliyuncs.com/compatible-mode/v1";
 
+        String finalBaseUrl = effectiveBaseUrl;
+        if (effectiveModelName.contains("deepseek") && finalBaseUrl.endsWith("/v1")) {
+            // 🎯 优化：部分 DeepSeek 节点在 v1 路径下的 Streaming Tool Call 存在兼容性差异，尝试使用根路径
+            finalBaseUrl = finalBaseUrl.substring(0, finalBaseUrl.length() - 3);
+        }
+
         return dev.langchain4j.model.openai.OpenAiStreamingChatModel.builder()
                 .apiKey(effectiveApiKey)
                 .modelName(effectiveModelName)
-                .baseUrl(effectiveBaseUrl)
-                .temperature(config.getTemperature())
+                .baseUrl(finalBaseUrl)
+                .temperature(0.1) // 🎯 降低随机性确保触发工具
+                .logRequests(true)
+                .logResponses(true)
                 .build();
     }
 }

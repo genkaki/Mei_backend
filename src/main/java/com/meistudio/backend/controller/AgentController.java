@@ -81,6 +81,7 @@ public class AgentController {
         try {
             agentService.chatStream(userId, message, config)
                     .onNext(token -> {
+                        log.debug("[Agent] 流式输出 Token: {}", token);
                         try {
                             emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event()
                                     .name("message")
