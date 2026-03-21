@@ -278,7 +278,7 @@ public class AgentService {
                 ? config.getApiKey() : userConfig.getDashscopeApiKey();
         
         if (effectiveApiKey == null || effectiveApiKey.isBlank()) {
-            throw new IllegalArgumentException("您的 AI 对话引擎尚未启动。网页端用户由于独立成本核算，需“自带 Key (BYOK)”。请点击左侧‘系统设置’配置个人 API 秘钥。");
+            throw new IllegalArgumentException("AI 对话引擎尚未就绪。此功能（基础对话 / 插件）需要您“自带密钥 (BYOK)”才能运行。请前往‘系统设置’配置您的私密 API 秘钥。");
         }
         String effectiveModelName = (config.getModelName() != null && !config.getModelName().isEmpty() && !config.getModelName().equals("meistudio-cloud-agent")) 
                 ? config.getModelName() : userConfig.getChatModel();
