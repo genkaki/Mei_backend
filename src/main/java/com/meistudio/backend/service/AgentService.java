@@ -281,7 +281,7 @@ public class AgentService {
             throw new IllegalArgumentException("AI 对话引擎尚未就绪。此功能（基础对话 / 插件）需要您“自带密钥 (BYOK)”才能运行。请前往‘系统设置’配置您的私密 API 秘钥。");
         }
         String effectiveModelName = (config.getModelName() != null && !config.getModelName().isEmpty() && !config.getModelName().equals("meistudio-cloud-agent")) 
-                ? config.getModelName() : userConfig.getChatModel();
+                ? config.getModelName() : (userConfig.getChatModel() != null ? userConfig.getChatModel() : "qwen-plus");
         String effectiveBaseUrl = (config.getBaseUrl() != null && !config.getBaseUrl().isEmpty() && !config.getBaseUrl().equals("managed-by-backend")) 
                 ? config.getBaseUrl() : "https://dashscope.aliyuncs.com/compatible-mode/v1";
 
@@ -301,7 +301,7 @@ public class AgentService {
             throw new IllegalArgumentException("AI 对话引擎尚未就绪。此功能（基础对话 / 插件）需要您“自带密钥 (BYOK)”才能运行。请前往‘系统设置’配置您的私密 API 秘钥。");
         }
         String effectiveModelName = (config.getModelName() != null && !config.getModelName().isEmpty() && !config.getModelName().equals("meistudio-cloud-agent")) 
-                ? config.getModelName() : userConfig.getChatModel();
+                ? config.getModelName() : (userConfig.getChatModel() != null ? userConfig.getChatModel() : "qwen-plus");
         String effectiveBaseUrl = (config.getBaseUrl() != null && !config.getBaseUrl().isEmpty() && !config.getBaseUrl().equals("managed-by-backend")) 
                 ? config.getBaseUrl() : "https://dashscope.aliyuncs.com/compatible-mode/v1";
 
