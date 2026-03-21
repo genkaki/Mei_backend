@@ -104,13 +104,13 @@ public class AgentService {
      */
     public interface SearchAgent {
         @SystemMessage("""
-                你是 MeiStudio 智能助手。你拥有联网搜索和 MCP 插件扩展能力。
+                你是 MeiStudio 智能助手。你拥有多个通过 MCP 协议动态扩展的功能插件。
                 
-                行为准则：
-                1. 面对任何需要查询、画图、代码或外部信息的任务，你【必须】开启对应插件。
-                2. 对于【绘图/画图/生图】请求，你必须调用 `modelstudio_z_image_generation` 或类似的绘图工具，严禁仅凭文字描述。
-                3. 对于【联网搜索】请求，请在回答首行明确说明“正在为您联网搜索...”。
-                4. 严禁在调用工具前废话。调用后，请基于工具返回的结果进行解答。
+                【核心行为准则】
+                1. 请根据用户的请求意图，自主判断并选择最合适的插件工具进行调用。
+                2. 【关键】严禁在调用工具前进行任何文字解释、开场白或引导语（如“好的”，“没问题”，“正在为您...”）。
+                3. 必须直接触发工具调用。只有在获取工具结果后，才结合结果向用户提供最终回答。
+                4. 对于联网搜索任务，请在回答首行明确说明“正在为您联网搜索...”。
                 5. 当前日期：{{current_date}}，驱动：{{model_name}}。
                 """)
         String chat(@V("current_date") String currentDate, @V("model_name") String modelName, @UserMessage String userMessage);
@@ -121,15 +121,13 @@ public class AgentService {
      */
     public interface StreamingSearchAgent {
         @SystemMessage("""
-                你是 MeiStudio 智能助手。
+                你是 MeiStudio 智能助手。你拥有多个通过 MCP 协议动态扩展的功能插件。
                 
-                【核心指令 - 优先级最高】
-                1. 只要用户提到“画”、“绘”、“图片”、“生成图”，你【必须且只能】调用 `modelstudio_z_image_generation` 工具。
-                2. 严禁进行任何文字描述、开场白（如“好的”、“没问题”）、结束语或解释，只需输出工具调用。
-                
-                【其他规则】
-                3. 对于需要查询外部信息的任务，调用联网搜索插件。
-                4. 联网搜索时，首行说明“正在为您联网搜索...”。
+                【核心行为准则】
+                1. 请根据用户的请求意图，自主判断并选择最合适的插件工具进行调用。
+                2. 【关键】严禁在调用工具前进行任何文字解释、开场白或引导语（如“好的”，“没问题”，“正在为您...”）。
+                3. 必须直接触发工具调用。只有在获取工具结果后，才结合结果向用户提供最终回答。
+                4. 对于联网搜索任务，请在回答首行明确说明“正在为您联网搜索...”。
                 5. 当前日期：{{current_date}}，驱动：{{model_name}}。
                 """)
         TokenStream chat(@V("current_date") String currentDate, @V("model_name") String modelName, @UserMessage String userMessage);
@@ -317,17 +315,11 @@ public class AgentService {
         String effectiveBaseUrl = (config.getBaseUrl() != null && !config.getBaseUrl().isEmpty() && !config.getBaseUrl().equals("managed-by-backend")) 
                 ? config.getBaseUrl() : "https://dashscope.aliyuncs.com/compatible-mode/v1";
 
-        String finalBaseUrl = effectiveBaseUrl;
-        if (effectiveModelName.contains("deepseek") && finalBaseUrl.endsWith("/v1")) {
-            // 🎯 优化：部分 DeepSeek 节点在 v1 路径下的 Streaming Tool Call 存在兼容性差异，尝试使用根路径
-            finalBaseUrl = finalBaseUrl.substring(0, finalBaseUrl.length() - 3);
-        }
-
         return dev.langchain4j.model.openai.OpenAiStreamingChatModel.builder()
                 .apiKey(effectiveApiKey)
                 .modelName(effectiveModelName)
-                .baseUrl(finalBaseUrl)
-                .temperature(0.1) // 🎯 降低随机性确保触发工具
+                .baseUrl(effectiveBaseUrl)
+                .temperature(config.getTemperature())
                 .logRequests(true)
                 .logResponses(true)
                 .build();
