@@ -67,7 +67,7 @@ public class AgentController {
     @PostMapping(value = "/chat-stream", produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
     public org.springframework.web.servlet.mvc.method.annotation.SseEmitter chatStream(
             @RequestBody Map<String, Object> body,
-            javax.servlet.http.HttpServletResponse response) {
+            jakarta.servlet.http.HttpServletResponse response) {
         
         // 🎯 核心优化：告知 Nginx 此时不要进行响应缓冲，确保 SSE 各个分块能立即到达客户端
         response.setHeader("X-Accel-Buffering", "no");
