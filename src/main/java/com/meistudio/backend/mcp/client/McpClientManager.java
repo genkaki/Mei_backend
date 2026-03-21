@@ -230,25 +230,19 @@ public class McpClientManager {
     private Map<String, String> buildHeaderMap(String headersJson, String apiKey) {
         Map<String, String> headerMap = new HashMap<>();
 
-        // 1. 确定最终使用的 API Key
+        // 1. 获取数据库中存储的 API Key
         String finalApiKey = apiKey;
         
-        // 如果数据库里的 Key 是空的，或者是特定的占位符，则尝试使用系统全局 Key
-        boolean isPlaceholder = finalApiKey != null && (
-                finalApiKey.equalsIgnoreCase("system_default") || 
-                finalApiKey.equalsIgnoreCase("sk-2acf9ded37094e5f82dee3466625a1b1") // 兼容旧代码遗留的测试 Key
-        );
-
-        if (finalApiKey == null || finalApiKey.isBlank() || isPlaceholder) {
-            // 从 AgentService 获取系统默认 Key（它会读取 DASHSCOPE_API_KEY 环境变量）
-            finalApiKey = agentService.getSystemDefaultApiKey();
-            if (finalApiKey != null && !finalApiKey.isBlank()) {
-                log.info("[McpClientManager] 检测到插件密钥需要回退到系统全局密钥 (标识: {})", 
-                        isPlaceholder ? "占位符匹配" : "字段为空");
-            }
+        // 判定准则：插件 (MCP) 必须遵循 strict BYOK 原则。
+        // 如果数据库里的 Key 是空的，或者是特定的测试占位符，不论是网页端还是鸿蒙端，统统不进行回退。
+        // 这确保了插件资源的成本由用户自行承担。
+        String placeholder = "sk-2acf9ded37094e5f82dee3466625a1b1";
+        if (finalApiKey == null || finalApiKey.isBlank() || finalApiKey.equals(placeholder)) {
+            log.warn("[McpClientManager] 检测到插件密钥缺失或为无效占位符，根据安全政策，插件调用将尝试直接发起（通常会导致 401）");
+            finalApiKey = null; // 设置为 null，防止发送带有占位符的请求
         }
 
-        // 2. 如果最终有 apiKey，设置为默认 Authorization
+        // 2. 如果有密钥，设置为 Authorization Header
         if (finalApiKey != null && !finalApiKey.isBlank()) {
             headerMap.put("Authorization", "Bearer " + finalApiKey);
         }
