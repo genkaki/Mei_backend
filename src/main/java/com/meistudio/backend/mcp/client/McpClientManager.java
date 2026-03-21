@@ -8,6 +8,7 @@ import com.meistudio.backend.mapper.McpServerMapper;
 import com.meistudio.backend.service.AgentService;
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.service.tool.ToolExecutor;
+import com.meistudio.backend.mcp.McpProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
