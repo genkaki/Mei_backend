@@ -93,7 +93,8 @@ public class McpServerConnection {
             log.error("[McpClient] 连接失败: name={}, url={}, error={}", 
                     serverName, serverUrl, e.getMessage());
             this.connected = false;
-            throw e; // 🎯 核心修复：向上抛出异常，让后端 controller 和前端能看到具体报错（如 401, 500 等）
+            // 🎯 核心修复：向上抛出 RuntimeException，确保编译通过且前端能看到原因
+            throw e instanceof RuntimeException ? (RuntimeException)e : new RuntimeException(e.getMessage());
         }
     }
 
