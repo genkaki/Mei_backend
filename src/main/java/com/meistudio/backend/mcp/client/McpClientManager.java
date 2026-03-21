@@ -232,13 +232,19 @@ public class McpClientManager {
 
         // 1. 确定最终使用的 API Key
         String finalApiKey = apiKey;
-        // 如果数据库里的 Key 是空的，或者是那个已知的旧占位符，则尝试使用系统全局 Key
-        String placeholder = "sk-2acf9ded37094e5f82dee3466625a1b1";
-        if (finalApiKey == null || finalApiKey.isBlank() || finalApiKey.equals(placeholder)) {
+        
+        // 如果数据库里的 Key 是空的，或者是特定的占位符，则尝试使用系统全局 Key
+        boolean isPlaceholder = finalApiKey != null && (
+                finalApiKey.equalsIgnoreCase("system_default") || 
+                finalApiKey.equalsIgnoreCase("sk-2acf9ded37094e5f82dee3466625a1b1") // 兼容旧代码遗留的测试 Key
+        );
+
+        if (finalApiKey == null || finalApiKey.isBlank() || isPlaceholder) {
             // 从 AgentService 获取系统默认 Key（它会读取 DASHSCOPE_API_KEY 环境变量）
             finalApiKey = agentService.getSystemDefaultApiKey();
             if (finalApiKey != null && !finalApiKey.isBlank()) {
-                log.info("[McpClientManager] 检测到插件密钥为空或为占位符，已自动回退到系统全局密钥");
+                log.info("[McpClientManager] 检测到插件密钥需要回退到系统全局密钥 (标识: {})", 
+                        isPlaceholder ? "占位符匹配" : "字段为空");
             }
         }
 
