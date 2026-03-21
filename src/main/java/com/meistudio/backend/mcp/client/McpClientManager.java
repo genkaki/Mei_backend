@@ -221,6 +221,31 @@ public class McpClientManager {
         return server;
     }
 
+    /**
+     * 测试指定的 MCP Server。
+     * 只有测试通过（能发现工具）才返回成功，并附带工具列表。
+     */
+    public List<McpProtocol.ToolDefinition> testServer(Long userId, Long serverId) {
+        log.info("[McpClientManager] 测试 MCP Server: userId={}, serverId={}", userId, serverId);
+        McpServer server = mcpServerMapper.selectById(serverId);
+        if (server == null || !server.getUserId().equals(userId)) {
+            throw new RuntimeException("MCP Server 不存在或无权限");
+        }
+
+        // 解析 Headers
+        Map<String, String> headerMap = buildHeaderMap(server.getHeaders(), server.getApiKey());
+
+        // 执行握手和工具列表查询
+        McpServerConnection connection = new McpServerConnection(server.getName(), server.getUrl(), headerMap);
+        connection.connect();
+
+        if (connection.isConnected()) {
+            return connection.getDiscoveredTools();
+        } else {
+            throw new RuntimeException("测试失败：无法连接到插件端点。请检查 URL 和 API Key 是否正确，或网络是否通畅。");
+        }
+    }
+
     // ==================== 内部方法 ====================
 
     /**

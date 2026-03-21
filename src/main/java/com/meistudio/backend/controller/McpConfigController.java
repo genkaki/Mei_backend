@@ -119,4 +119,20 @@ public class McpConfigController {
         McpServer server = mcpClientManager.toggleActive(userId, id, active);
         return Result.success(server);
     }
+
+    /**
+     * 测试指定的 MCP Server。
+     * POST /api/mcp/servers/{id}/test
+     */
+    @PostMapping("/{id}/test")
+    @RateLimit(maxRequests = 5, windowSeconds = 60, message = "测试请求过于频繁，请稍后再试")
+    public Result<Object> testServer(@PathVariable Long id) {
+        Long userId = UserContext.getUserId();
+        try {
+            Object toolList = mcpClientManager.testServer(userId, id);
+            return Result.success(toolList);
+        } catch (Exception e) {
+            return Result.error(500, e.getMessage());
+        }
+    }
 }
