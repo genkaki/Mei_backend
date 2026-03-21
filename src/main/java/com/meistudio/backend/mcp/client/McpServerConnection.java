@@ -136,7 +136,8 @@ public class McpServerConnection {
                 .uri(URI.create(serverUrl))
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MeiStudio/1.2.0")
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MeiStudio/1.2.0");
+
         String apiKey = extractApiKeyFromHeaders();
         if (apiKey != null && !apiKey.isEmpty()) {
             builder.header("Authorization", "Bearer " + apiKey);
