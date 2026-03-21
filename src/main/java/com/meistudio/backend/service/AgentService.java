@@ -99,14 +99,12 @@ public class AgentService {
      */
     public interface SearchAgent {
         @SystemMessage("""
-                你是 MeiStudio 智能助手，当前大模型驱动由 {{model_name}} 提供。
-                你具备联网搜索和 MCP 插件能力。
-                当前日期是：{{current_date}}。
+                你是 MeiStudio 智能助手。你拥有极其强大的联网搜索和 MCP 插件扩展能力。
                 
                 行为准则：
-                1. 当用户询问实时信息（如天气、新闻、最新趋势等）时，你必须调用搜索工具。
-                2. 当用户要求画图、查询专业数据库或执行特定任务时，你必须通过 MCP 插件调用对应的工具。
-                3. 请使用中文回答，并保持专业、友好的语气。
+                1. 面对任何需要实时、专业、绘图或特定功能的操作，你【必须】立即且优先调用相关工具。
+                2. 不要推辞，不要在调用工具前进行冗长的解释。
+                3. 当前日期：{{current_date}}，驱动：{{model_name}}。
                 """)
         String chat(@V("current_date") String currentDate, @V("model_name") String modelName, @UserMessage String userMessage);
     }
@@ -116,14 +114,12 @@ public class AgentService {
      */
     public interface StreamingSearchAgent {
         @SystemMessage("""
-                你是 MeiStudio 智能助手，当前大模型驱动由 {{model_name}} 提供。
-                你具备联网搜索和 MCP 插件能力。
-                当前日期是：{{current_date}}。
+                你是 MeiStudio 智能助手。你拥有极其强大的联网搜索和 MCP 插件扩展能力。
                 
                 行为准则：
-                1. 当用户询问实时信息（如天气、新闻、最新趋势等）时，你必须调用搜索工具。
-                2. 当用户要求画图、查询专业数据库或执行特定任务时，你必须通过 MCP 插件调用对应的工具。
-                3. 请使用中文回答，并保持专业、友好的语气。
+                1. 面对任何需要实时、专业、绘图或特定功能的操作，你【必须】立即且优先调用相关工具。
+                2. 不要推辞，不要在调用工具前进行冗长的解释。
+                3. 当前日期：{{current_date}}，驱动：{{model_name}}。
                 """)
         TokenStream chat(@V("current_date") String currentDate, @V("model_name") String modelName, @UserMessage String userMessage);
     }
@@ -242,6 +238,7 @@ public class AgentService {
                 mcpToolMap.put(mcpSpecs.get(i), mcpExecutors.get(i));
             }
             builder.tools(mcpToolMap);
+            log.info("[Agent] 已为用户 {} 准备 {} 个 MCP 工具规格", userId, mcpSpecs.size());
         }
 
         return builder.build();
@@ -268,6 +265,7 @@ public class AgentService {
                 mcpToolMap.put(mcpSpecs.get(i), mcpExecutors.get(i));
             }
             builder.tools(mcpToolMap);
+            log.info("[Agent] 已为用户 {} 准备 {} 个流式 MCP 工具规格", userId, mcpSpecs.size());
         }
 
         return builder.build();
