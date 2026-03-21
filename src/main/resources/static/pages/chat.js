@@ -311,8 +311,15 @@ function parseMarkdown(text) {
   try {
     // 1. 先处理 MCP 特殊标记（转换为 HTML）
     let html = renderMcpRichContent(text || '');
+
+    // 2. 处理普通 URL（自动转换为链接），排除已经在 <a> 标签或 [MCP_] 标签内的
+    // 简单的正则匹配 http/https 链接
+    const urlRegex = /(?<!href="|">|src=")(https?:\/\/[^\s<]+[^.,\s<])/g;
+    html = html.replace(urlRegex, (url) => {
+      return `<a href="${url}" target="_blank" class="chat-link">${url}</a>`;
+    });
     
-    // 2. 使用 marked 解析剩余的 Markdown 语法
+    // 3. 使用 marked 解析剩余的 Markdown 语法
     if (typeof marked !== 'undefined') {
       return marked.parse(html);
     }
