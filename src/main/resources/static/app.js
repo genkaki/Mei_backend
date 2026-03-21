@@ -62,6 +62,14 @@ function navigate(hash) {
   }, 100);
 
   currentPage = route;
+
+  // Mobile: Auto close sidebar on navigate
+  if (window.innerWidth <= 768) {
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar?.classList.contains('mobile-open')) {
+      window.__toggleSidebar?.();
+    }
+  }
 }
 
 // ==================== Login / Logout ====================
@@ -275,6 +283,19 @@ function initTheme() {
   const icon = document.getElementById('theme-icon');
   if (icon) icon.textContent = savedTheme === 'light' ? '☀️' : '🌙';
 }
+
+// ==================== Sidebar Mobile Toggle ====================
+
+window.__toggleSidebar = function() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  const body = document.body;
+  if (sidebar) {
+    const isOpen = sidebar.classList.toggle('mobile-open');
+    if (overlay) overlay.classList.toggle('active', isOpen);
+    body.classList.toggle('lock-scroll', isOpen);
+  }
+};
 
 // ==================== App Init ====================
 

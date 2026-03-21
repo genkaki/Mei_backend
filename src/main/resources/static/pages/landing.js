@@ -51,7 +51,7 @@ export function renderLanding() {
         </div>
 
         <p class="login-hint">
-          💡 <strong>独立空间</strong>：网页端采用邮箱认证体系，数据与鸿蒙端（设备 ID 模式）物理隔离，确保开发与演示互不干扰。
+          💡 <strong>数据隔离</strong>：网页端采用邮箱认证体系，与鸿蒙端（设备 ID 模式）在数据逻辑层深度解耦，确保开发与演示互不干扰。
         </p>
       </div>
     </div>
@@ -62,11 +62,11 @@ export function renderLanding() {
       <div class="hero-logo">
         <img src="/assets/logo.png" alt="MeiStudio Logo">
       </div>
-      <div class="hero-badge">✦ Spring Boot + LangChain4j + MCP 全栈实战</div>
+      <div class="hero-badge">✦ Spring Boot 3 + LangChain4j + MCP 全栈实战</div>
       <h1 class="hero-title">MeiStudio AI 智能助手平台</h1>
       <p class="hero-subtitle">
-        一个面向 HarmonyOS NEXT 的 AI 助手应用后端。集成 RAG 知识库检索增强、
-        MCP 协议插件扩展、联网搜索、流式对话等能力，后端约 3000+ 行 Java 代码。
+        面向 HarmonyOS NEXT 的 AI 助手核心引擎。集成 RAG 知识库检索增强、
+        MCP 协议插件扩展、实时联网搜索等能力，构建标准化的端云协同 AI 闭环。
       </p>
       ${loginSection}
     </div>
@@ -74,20 +74,20 @@ export function renderLanding() {
     <!-- Stats -->
     <div class="landing-stats reveal-stagger">
       <div class="stat-card card-shine">
-        <div class="stat-value">3300+</div>
-        <div class="stat-label">Java 后端代码行</div>
+        <div class="stat-value">Clean</div>
+        <div class="stat-label">Architecture 架构实现</div>
       </div>
       <div class="stat-card card-shine">
         <div class="stat-value">39</div>
-        <div class="stat-label">核心源文件</div>
+        <div class="stat-label">核心组件源文件</div>
       </div>
       <div class="stat-card card-shine">
         <div class="stat-value">6</div>
         <div class="stat-label">MCP 协议方法</div>
       </div>
       <div class="stat-card card-shine">
-        <div class="stat-value">5-8x</div>
-        <div class="stat-label">处理加速比</div>
+        <div class="stat-value">3-5x</div>
+        <div class="stat-label">向量化并发提速</div>
       </div>
     </div>
 
@@ -153,13 +153,13 @@ export function renderLanding() {
       <div class="feature-grid reveal-stagger">
         <div class="feature-card card-shine">
           <div class="feature-icon">${ICONS.CPU}</div>
-          <div class="feature-title">虚拟线程并行处理</div>
-          <div class="feature-desc">Java 21 虚拟线程支持，在高并发向量化任务下性能提升显著。</div>
+          <div class="feature-title">高性能并发处理</div>
+          <div class="feature-desc">基于 Spring Boot 3 异步架构优化，在 RAG 向量化任务下展现卓越吞吐性能。</div>
         </div>
         <div class="feature-card card-shine">
           <div class="feature-icon">${ICONS.SHIELD}</div>
-          <div class="feature-title">多租户安全隔离</div>
-          <div class="feature-desc">基于 JWT 和分布式 ID 的严格数据物理隔离与限流保障。</div>
+          <div class="feature-title">数据逻辑隔离</div>
+          <div class="feature-desc">基于 JWT 和分布式 ID 的严格隔离，确保不同租户与终端数据安全解耦。</div>
         </div>
         <div class="feature-card card-shine">
           <div class="feature-icon">${ICONS.GLOBE}</div>
