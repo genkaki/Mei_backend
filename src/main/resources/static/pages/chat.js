@@ -70,7 +70,7 @@ export function initChat() {
   isStreaming = false;
   selectedFileIds = [];
   selectedMcpIds = new Set();
-  
+
   // Persistence: Load messages from storage
   messages = loadMessages();
 
@@ -100,7 +100,7 @@ export function initChat() {
 function loadMessages() {
   const stored = sessionStorage.getItem(getStorageKey());
   if (stored) {
-    try { return JSON.parse(stored); } catch(e) { return []; }
+    try { return JSON.parse(stored); } catch (e) { return []; }
   }
   return [];
 }
@@ -130,7 +130,7 @@ async function loadFileList() {
         <span class="file-check-name">${doc.fileName}</span>
       </label>
     `).join('') || '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px">无已完成文件</div>';
-  } catch(e) {
+  } catch (e) {
     panel.innerHTML = `<div style="padding:20px;text-align:center;color:var(--danger);font-size:12px">加载失败</div>`;
   }
 }
@@ -151,7 +151,7 @@ async function loadMcpServers() {
     const { listMcpServers } = await import('../api.js');
     const servers = await listMcpServers();
     const activeServers = servers.filter(s => s.active);
-    
+
     if (activeServers.length === 0) {
       panel.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px">暂无可用插件</div>`;
       return;
@@ -173,7 +173,7 @@ async function loadMcpServers() {
         </label>
       `;
     }).join('');
-  } catch(e) {
+  } catch (e) {
     panel.innerHTML = `<div style="padding:20px;text-align:center;color:var(--danger);font-size:12px">加载失败</div>`;
   }
 }
@@ -300,7 +300,7 @@ async function doClearChat() {
   if (!confirm('确定清空当前对话记录吗？此操作不可撤销。')) return;
   try {
     await clearMemory();
-  } catch(e) { /* ignore */ }
+  } catch (e) { /* ignore */ }
   messages = [];
   sessionStorage.removeItem(getStorageKey());
   renderMessages();
@@ -312,19 +312,12 @@ function parseMarkdown(text) {
     // 1. 先处理 MCP 特殊标记（转换为 HTML）
     let html = renderMcpRichContent(text || '');
 
-    // 2. 处理普通 URL（自动转换为链接），排除已经在 <a> 标签或 [MCP_] 标签内的
-    // 简单的正则匹配 http/https 链接
-    const urlRegex = /(?<!href="|">|src=")(https?:\/\/[^\s<]+[^.,\s<])/g;
-    html = html.replace(urlRegex, (url) => {
-      return `<a href="${url}" target="_blank" class="chat-link">${url}</a>`;
-    });
-    
-    // 3. 使用 marked 解析剩余的 Markdown 语法
+    // 2. 使用 marked 解析剩余的 Markdown 语法
     if (typeof marked !== 'undefined') {
       return marked.parse(html);
     }
     return html.replace(/\n/g, '<br>');
-  } catch(e) {
+  } catch (e) {
     console.error('Markdown parse error:', e);
     return escapeHtml(text).replace(/\n/g, '<br>');
   }
