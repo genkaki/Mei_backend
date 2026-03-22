@@ -4,7 +4,6 @@ import com.meistudio.backend.annotation.RateLimit;
 import com.meistudio.backend.common.Result;
 import com.meistudio.backend.entity.Document;
 import com.meistudio.backend.service.KnowledgeService;
-import com.meistudio.backend.dto.KnowledgeUploadRequest;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -24,36 +23,37 @@ public class KnowledgeController {
 
     /**
      * 上传文档至知识库（异步处理）。
-     * 支持 JSON 格式上传（对接 HarmonyOS 客户端）。
+     * POST /api/kb/upload
+     * Form-data: file (TXT), apiKey (DashScope API Key)
+     *
+     * 接口会立即返回"文件已接收"，向量化在后台线程池中异步执行。
+     * 前端可通过 GET /api/kb/documents 轮询文档状态（status: 0=处理中, 1=成功, 2=失败）。
      */
     @PostMapping("/upload")
     @RateLimit(maxRequests = 20, windowSeconds = 60, message = "上传过于频繁，请稍后再试")
-    public Result<Map<String, Object>> upload(@RequestBody KnowledgeUploadRequest request) throws IOException {
+    public Result<Map<String, Object>> upload(
+            @RequestParam("file") MultipartFile file) throws IOException {
 
-        if (request.getFileName() == null || request.getFileName().isEmpty()) {
-            return Result.error(400, "文件名不能为空");
+        if (file.isEmpty()) {
+            return Result.error(400, "文件不能为空");
         }
-        
-        if (request.getContent() == null || request.getContent().isEmpty()) {
-            return Result.error(400, "文件内容不能为空");
-        }
-
-        byte[] bytes = request.getContent().getBytes(java.nio.charset.StandardCharsets.UTF_8);
 
         // 文件大小校验 (5MB)
-        if (bytes.length > 5 * 1024 * 1024) {
+        if (file.getSize() > 5 * 1024 * 1024) {
             return Result.error(400, "文件大小不能超过 5MB");
         }
 
         // 文件类型校验
-        String fileName = request.getFileName();
-        String lower = fileName.toLowerCase();
-        if (!lower.endsWith(".txt") && !lower.endsWith(".md") && !lower.endsWith(".json")
-                && !lower.endsWith(".pdf") && !lower.endsWith(".doc") && !lower.endsWith(".docx")) {
-            return Result.error(400, "不支持该文件格式，仅支持 TXT/MD/PDF/Word/JSON");
+        String fileName = file.getOriginalFilename();
+        if (fileName != null) {
+            String lower = fileName.toLowerCase();
+            if (!lower.endsWith(".txt") && !lower.endsWith(".md") && !lower.endsWith(".json")
+                    && !lower.endsWith(".pdf") && !lower.endsWith(".doc") && !lower.endsWith(".docx")) {
+                return Result.error(400, "不支持该文件格式，仅支持 TXT/MD/PDF/Word");
+            }
         }
 
-        Long docId = knowledgeService.uploadDocument(fileName, bytes);
+        Long docId = knowledgeService.uploadDocument(file);
         return Result.success("文件已接收，正在后台处理中", Map.of("docId", docId, "status", "processing"));
     }
 
