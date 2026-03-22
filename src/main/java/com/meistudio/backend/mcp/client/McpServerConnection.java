@@ -12,6 +12,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.*;
+import java.util.Base64;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -90,11 +91,15 @@ public class McpServerConnection {
             return discoveredTools.size();
 
         } catch (Exception e) {
+            String errorDetail = e.getMessage();
+            if (e.getCause() != null) {
+                errorDetail += " (Cause: " + e.getCause().getMessage() + ")";
+            }
             log.error("[McpClient] 连接失败: name={}, url={}, error={}", 
-                    serverName, serverUrl, e.getMessage());
+                    serverName, serverUrl, errorDetail);
             this.connected = false;
-            // 🎯 核心修复：向上抛出 RuntimeException，确保编译通过且前端能看到原因
-            throw e instanceof RuntimeException ? (RuntimeException)e : new RuntimeException(e.getMessage());
+            // 🎯 核心修复：向上抛出包含详情的 RuntimeException
+            throw new RuntimeException("MCP 连接失败: " + errorDetail);
         }
     }
 
@@ -336,9 +341,14 @@ public class McpServerConnection {
                         else if (mimeType.startsWith("audio/")) {
                             sb.append("\n[MCP_AUDIO:").append(url).append("]\n");
                         }
-                        // 🖼️ 支持图片
+                        // 🖼️ 核心优化：尝试将图片 URL 转换为 Base64 (解决 DashScope OSS 访问权限/防盗链问题)
                         else {
-                            sb.append("\n[MCP_IMAGE:").append(url).append("]\n");
+                            String base64Data = tryDownloadImageAsBase64(url, mimeType);
+                            if (base64Data != null) {
+                                sb.append("\n[MCP_IMAGE_BASE64:").append(mimeType).append(":").append(base64Data).append("]\n");
+                            } else {
+                                sb.append("\n[MCP_IMAGE:").append(url).append("]\n");
+                            }
                         }
                     } else if (data != null && !data.isEmpty()) {
                         sb.append("\n[MCP_IMAGE_BASE64:").append(mimeType).append(":").append(data).append("]\n");
@@ -374,6 +384,37 @@ public class McpServerConnection {
         } catch (Exception e) {
             log.warn("[McpClient] 富内容解析回退为原始文本: {}", e.getMessage());
             return String.valueOf(result);
+        }
+    }
+
+    /**
+     * 核心增强：下载外部图片并转为 Base64。
+     * 目的：解决大模型生成图片链接时常见的“跨域”、“防盗链”或“Access Denied”（由于未签名）问题。
+     */
+    private String tryDownloadImageAsBase64(String imageUrl, String mimeType) {
+        try {
+            log.info("[McpClient] 正在代理下载图片并转码: {}", 
+                    imageUrl.length() > 50 ? imageUrl.substring(0, 50) + "..." : imageUrl);
+            
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(imageUrl))
+                    .timeout(Duration.ofSeconds(15))
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MeiStudio/1.2.0")
+                    .GET()
+                    .build();
+
+            HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            
+            if (response.statusCode() == 200) {
+                byte[] bytes = response.body();
+                return Base64.getEncoder().encodeToString(bytes);
+            } else {
+                log.warn("[McpClient] 图片代理下载失败，状态码: {}", response.statusCode());
+                return null;
+            }
+        } catch (Exception e) {
+            log.warn("[McpClient] 图片代理下载异常: {}", e.getMessage());
+            return null;
         }
     }
 }
