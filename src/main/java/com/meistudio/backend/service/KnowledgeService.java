@@ -88,23 +88,19 @@ public class KnowledgeService {
      * @return 文档记录 ID
      */
     public Long uploadDocument(MultipartFile file) throws IOException {
-        return uploadDocument(file.getOriginalFilename(), file.getBytes());
-    }
-
-    /**
-     * 兼容性重载：直接接收文件名和字节流（支持 JSON/Base64 上传路径）。
-     */
-    public Long uploadDocument(String fileName, byte[] bytes) {
         Long userId = UserContext.getUserId();
 
+        // 1. 在 MySQL 中创建文档记录（status=0，处理中）
         Document doc = new Document();
         doc.setUserId(userId);
-        doc.setFileName(fileName);
-        doc.setFileSize((long) bytes.length);
+        doc.setFileName(file.getOriginalFilename());
+        doc.setFileSize(file.getSize());
         doc.setStatus(0);
         documentMapper.insert(doc);
 
-        processDocumentAsync(doc.getId(), userId, fileName, bytes);
+        // 2. 读取文件内容并进行向量化处理
+        // 注意：不建议将文件字节转为 String，因为 PDF/Word 是二进制格式
+        processDocumentAsync(doc.getId(), userId, file.getOriginalFilename(), file.getBytes());
 
         return doc.getId();
     }
@@ -144,12 +140,6 @@ public class KnowledgeService {
             }
 
             log.info("[异步向量化] 文档 '{}' 切分为 {} 个语义块, 用户={}", fileName, cleanSegments.size(), userId);
-
-            if (cleanSegments.isEmpty()) {
-                log.warn("[异步向量化] 文档 '{}' 解析后内容为空，请检查文件编码或损坏情况。", fileName);
-                updateDocumentStatus(docId, 2); // 标记为失败
-                return;
-            }
 
             // 3. 构建向量模型
             // 策略：鸿蒙端使用系统环境 Key，网页端强制使用个人私有 Key (BYOK)

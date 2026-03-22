@@ -3,7 +3,6 @@ package com.meistudio.backend.service;
 import com.meistudio.backend.entity.McpServer;
 import com.meistudio.backend.entity.UserConfig;
 import com.meistudio.backend.mcp.client.McpClientManager;
-import com.meistudio.backend.service.tool.WebSearchTool;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatLanguageModel;
@@ -73,7 +72,6 @@ public class AgentService {
     @Value("${agent.memory-window-size:10}")
     private int memoryWindowSize;
 
-    private final WebSearchTool webSearchTool;
     private final McpClientManager mcpClientManager;
     private final KnowledgeService knowledgeService;
     private final UserConfigService userConfigService;
@@ -109,9 +107,10 @@ public class AgentService {
                 【核心行为准则】
                 1. 请根据用户的请求意图，自主判断并选择最合适的插件工具进行调用。
                 2. 【关键】严禁在调用工具前进行任何文字解释、开场白或引导语（如“好的”，“没问题”，“正在为您...”）。
-                3. 【重要】如果工具返回结果中包含 `[MCP_IMAGE:...]`、`[MCP_VIDEO:...]` 或 `[MCP_FILE:...]` 等标签，请务必【原样保留】在你的回答中。严禁将其改写为普通 URL 链接，否则前端将无法正常渲染组件。
-                4. 对于联网搜索任务，请在回答首行明确说明“正在为您联网搜索...”。
-                5. 当前日期：{{current_date}}，驱动：{{model_name}}。
+                3. 必须直接触发工具调用。只有在获取工具结果后，才结合结果向用户提供最终回答。
+                4. 【重要】如果工具返回了包含 `[MCP_IMAGE:` 或 `[MCP_IMAGE_BASE64:` 等标记的内容，请原样保留这些标记，严禁在回答中修改 URL、尝试重写标记或仅提供纯链接文字。
+                5. 请确保你的回答详尽且有据可查，尽可能引用工具返回的原始信息。
+                6. 当前日期：{{current_date}}，驱动：{{model_name}}。
                 """)
         String chat(@V("current_date") String currentDate, @V("model_name") String modelName, @UserMessage String userMessage);
     }
@@ -126,9 +125,9 @@ public class AgentService {
                 【核心行为准则】
                 1. 请根据用户的请求意图，自主判断并选择最合适的插件工具进行调用。
                 2. 【关键】严禁在调用工具前进行任何文字解释、开场白或引导语（如“好的”，“没问题”，“正在为您...”）。
-                3. 【重要】如果工具返回结果中包含 `[MCP_IMAGE:...]`、`[MCP_VIDEO:...]` 或 `[MCP_FILE:...]` 等标签，请务必【原样保留】在你的回答中。严禁将其改写为普通 URL 链接，否则前端将无法正常渲染组件。
-                4. 必须直接触发工具调用。只有在获取工具结果后，才结合结果向用户提供最终回答。
-                5. 对于联网搜索任务，请在回答首行明确说明“正在为您联网搜索...”。
+                3. 必须直接触发工具调用。只有在获取工具结果后，才结合结果向用户提供最终回答。
+                4. 【重要】如果工具返回了包含 `[MCP_IMAGE:` 或 `[MCP_IMAGE_BASE64:` 等标记的内容，请原样保留这些标记，严禁在回答中修改 URL、尝试重写标记或仅提供纯链接文字。
+                5. 请确保你的回答详尽且有据可查，尽可能引用工具返回的原始信息。
                 6. 当前日期：{{current_date}}，驱动：{{model_name}}。
                 """)
         TokenStream chat(@V("current_date") String currentDate, @V("model_name") String modelName, @UserMessage String userMessage);
@@ -148,9 +147,8 @@ public class AgentService {
         private Double temperature = 0.7;
     }
 
-    public AgentService(WebSearchTool webSearchTool, McpClientManager mcpClientManager, 
+    public AgentService(McpClientManager mcpClientManager, 
                         KnowledgeService knowledgeService, UserConfigService userConfigService) {
-        this.webSearchTool = webSearchTool;
         this.mcpClientManager = mcpClientManager;
         this.knowledgeService = knowledgeService;
         this.userConfigService = userConfigService;
@@ -240,8 +238,7 @@ public class AgentService {
 
         var builder = AiServices.builder(SearchAgent.class)
                 .chatLanguageModel(chatModel)
-                .chatMemory(memory)
-                .tools(webSearchTool);
+                .chatMemory(memory);
 
         if (!mcpSpecs.isEmpty()) {
             Map<ToolSpecification, ToolExecutor> mcpToolMap = new java.util.LinkedHashMap<>();
@@ -267,8 +264,7 @@ public class AgentService {
 
         var builder = AiServices.builder(StreamingSearchAgent.class)
                 .streamingChatLanguageModel(chatModel)
-                .chatMemory(memory)
-                .tools(webSearchTool);
+                .chatMemory(memory);
 
         if (!mcpSpecs.isEmpty()) {
             Map<ToolSpecification, ToolExecutor> mcpToolMap = new java.util.LinkedHashMap<>();
@@ -299,8 +295,8 @@ public class AgentService {
                 .modelName(effectiveModelName)
                 .baseUrl(effectiveBaseUrl)
                 .temperature(config.getTemperature())
-                .logRequests(true)
-                .logResponses(true)
+                .logRequests(false)
+                .logResponses(false)
                 .build();
     }
 
@@ -321,8 +317,8 @@ public class AgentService {
                 .modelName(effectiveModelName)
                 .baseUrl(effectiveBaseUrl)
                 .temperature(config.getTemperature())
-                .logRequests(true)
-                .logResponses(true)
+                .logRequests(false)
+                .logResponses(false)
                 .build();
     }
 }
